@@ -10,79 +10,54 @@
 #include "gurobi_c++.h"
 using namespace std;
 
-void readStations(const string stationsFile, std::vector<std::vector<double> >& stations);
-// readStation function reads from the file station ids, x and y coordinates
+//void readFiles(const string stationsFile, std::vector<std::vector<double> >& stations);
+void readFiles(const string costMatrixFile, std::vector<std::vector<double> >& cost);
+// readFiles function reads from the file station ids, x and y coordinates
 // @param stationsFile -> type const string, input file with 3 columns (id, x, y) and n rows describing n stations
 // @param &stations -> type std::vector<std::vector<double> >, output variable, vector of stations where each station is described as a vector (id, x, y)
-void readCounts (const string countsFile, std::vector<std::vector<int>& counts);
-void readCostMatrix(const string costMatrixFile, std::vector<std::vector<double> >& stations);
 
 int main(int argc, char *argv[]) {
 
 	GRBEnv* env = 0;
 	GRBVar** nEmptyVhs = 0;
-	//int emptyVhsDistance = 0;
+	std::vector<std::vector<double> > stations;
+	const string stationsFile = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/inputDemand/ecbd_stations21.txt";
+	readFiles(stationsFile, stations);
+
+	// distances or cost of traveling between the stations
+	std::vector<std::vector<double> > cost;
+	const string costMatrixFile = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/costMatrixForRebalancingBetween21Stations.txt";
+	readFiles(costMatrixFile, cost);
+
+	// origin counts
+	std::vector<std::vector<double> > origin_counts;
+	const string originCountsFile = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/origCounts_reb1800_stations21_updated.txt";
+	readFiles(originCountsFile, origin_counts);
+
+	// destination counts
+	std::vector<std::vector<double> > dest_counts;
+	const string destinationCountsFile = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/destCounts_reb1800_stations21_updated.txt";
+	readFiles(destinationCountsFile, dest_counts);
 
 	try {
 
 		// number of stations in the network
-		const int nStations = 3;
+		const int nStations = stations.size();
 
-		// distances between the stations
-
-		// 3 stations
-		int distances[nStations][nStations];
-		distances[0][0] = 0;
-		distances[1][1] = 0;
-		distances[2][2] = 0;
-		distances[0][1] = 100;
-		distances[0][2] = 1;
-		distances[1][2] = 1;
-		distances[1][0] = 100;
-		distances[2][0] = 1;
-		distances[2][1] = 1;
-
-		// random distances
-		//		int distances[nStations][nStations];
-		//		for (int i = 0; i < nStations; ++i){
-		//			for (int j = 0; j < nStations; ++j){
-		//				distances[i][j] = rand() % 10000;
-		//			}
-		//		}
+		// distances or cost of traveling between the stations
+//		int distances[nStations][nStations];
+//		for (int i = 0; i < nStations; i++) {
+//			for (int j = 0; j < nStations; j++) {
+//				distances[i][j] = cost[i][j];
+//			}
+//
+//		}
 
 		// number of vehicles at each station
-
-		// 3 stations
 		int nVhs [nStations];
-		nVhs[0] = 0;
-		nVhs[1] = 100;
-		nVhs[2] = 100;
-	//	int nVhsTotal = 200;
-
-		// random values
-
-		//		int nVhs [nStations];
-		//		int sumOfVeh = 0;
-		//		for (int i = 0; i < nStations; ++i){
-		//			nVhs[i] = rand() % 10;
-		//			sumOfVeh += nVhs[i];
-		//		}
 
 		// desired number of vehicles at each station
-
-		// 3 stations
 		int nVhsDesired [nStations];
-		nVhsDesired[0] = 200;
-		nVhsDesired[1] = 0;
-		nVhsDesired[2] = 0;
-
-		// random values
-		//		int nVhsDesired [nStations];
-		//		int sumOfVehDesired = 0;
-		//		for (int i = 0; i < nStations; ++i){
-		//			nVhsDesired[i] = rand() % 10;
-		//			sumOfVehDesired += nVhs[i];
-		//		}
 
 		// surplus of vehicles at each station (positive value if we have extra vehicles, negative value otherwise)
 		int excessVhs [nStations];
@@ -108,7 +83,7 @@ int main(int argc, char *argv[]) {
 			for(t = 0; t < nStations; ++t){
 				ostringstream vname;
 				vname << "nEmptyVhs" << t << "." << s;
-				nEmptyVhs[s][t].set(GRB_DoubleAttr_Obj, distances[s][t]);
+				nEmptyVhs[s][t].set(GRB_DoubleAttr_Obj, cost[s][t]);
 				nEmptyVhs[s][t].set(GRB_StringAttr_VarName, vname.str());
 			}
 		}
@@ -178,3 +153,85 @@ int main(int argc, char *argv[]) {
 }
 
 
+//void readFiles(const string stationsFile, std::vector<std::vector<double> >& stations) {
+//
+//	// Open the file:
+//	std::ifstream in(stationsFile.c_str());
+//	if (!in.good()) {
+//		std::cout << "Cannot read: " << stationsFile << std::endl;
+//	}
+//
+//	while (in.good()) {
+//
+//		double st_id;
+//		double st_x;
+//		double st_y;
+//		std::stringstream ss;
+//		std:: string element1, element2, element3;
+//		char buffer[256000];
+//		in.getline(buffer, 256000);
+//		if (strlen(buffer) == 0) break;
+//
+//		ss << buffer;
+//		//		std::cout << "Content of buffer: " << buffer << std::endl;
+//
+//		vector<double> v_temp;
+//		while (!ss.eof()){
+//			ss >> element1 >> element2 >> element3;
+//			//			std::cout << "Content of element2: " << element2 << ", element3: " << element3 << std::endl;
+//			st_id = atoi(element1.c_str());
+//			st_x = atof(element2.c_str());
+//			st_y = atof(element3.c_str());
+//			v_temp.push_back(st_id);
+//			v_temp.push_back(st_x);
+//			v_temp.push_back(st_y);
+//
+//			//			std::cout << "Content of vector: ";
+//			//			std::cout.precision(9); // I am loosing the digits when printing
+//			//			for (std::vector<double>::const_iterator i = v_temp.begin(); i != v_temp.end(); ++i) {
+//			//				std::cout << *i << ' ';
+//			//			}
+//			//			std::cout << std::endl;
+//		}
+//		stations.push_back(v_temp);
+//
+//	}
+//}
+
+void readFiles(const string filename, std::vector<std::vector<double> >& cost) {
+	// Open the file:
+	std::ifstream in(filename.c_str());
+	if (!in.good()) {
+		std::cout << "Cannot read: " << filename << std::endl;
+	}
+	std::cout << "Filename: " << filename << std::endl;
+
+	while (in.good()) {
+
+		double cij_temp;
+		std::stringstream ss;
+		std:: string line_;
+		char buffer[256000];
+		in.getline(buffer, 256000);
+		if (strlen(buffer) == 0) break;
+
+		ss << buffer;
+		std::cout << "Content of buffer: " << buffer << std::endl;
+
+		vector<double> v_temp;
+		while (!ss.eof()){
+			ss >> line_;
+			cij_temp = atof(line_.c_str());
+			v_temp.push_back(cij_temp);
+		}
+
+		std::cout << "Content of vector: ";
+		std::cout.precision(9); // I am loosing the digits when printing
+		for (std::vector<double>::const_iterator i = v_temp.begin(); i != v_temp.end(); ++i) {
+			std::cout << *i << ' ';
+		}
+		std::cout << std::endl;
+
+		cost.push_back(v_temp);
+	}
+}
