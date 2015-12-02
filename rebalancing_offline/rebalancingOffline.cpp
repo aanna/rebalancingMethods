@@ -1,7 +1,7 @@
 /*
  * rebalancingOffline.cpp
  *
- * Offline, static method of rebalancing: here is no queueing and each passenger is picked up upon arrival
+ * Offline, static method of rebalancing: here is no queuing and each passenger is picked up upon arrival
  *
  *
  *  Created on: Nov 24, 2015
@@ -60,6 +60,7 @@ int main(int argc, char *argv[]) {
 
 		// number of stations in the network
 		const int nStations = stations.size();
+		const int nStSquare = pow (nStations, 2);
 		//number of rebalancing periods = number of rows in the origin and destination counts, size of the first vector
 		const int nRebPeriods = origin_counts.size();
 
@@ -82,14 +83,14 @@ int main(int argc, char *argv[]) {
 		nEmptyVhs = new GRBVar* [nRebPeriods];
 
 		for ( time_ = 0; time_ < nRebPeriods; ++time_) {
-			nEmptyVhs[time_] = model.addVars(nStations * nStations);
+			nEmptyVhs[time_] = model.addVars(nStSquare);
 			model.update();
 
-			for(station = 0; station < (nStations * nStations); ++station){
+			for(station = 0; station < (nStSquare); ++station){
 				ostringstream vname;
 				divresult = div (station, nStations);
-				vname << "nEmptyVhsTime" << time_ << "." << floor(station/nStations) << "." << divresult.rem;
-				nEmptyVhs[time_][station].set(GRB_DoubleAttr_Obj, cost[floor(station/nStations)][divresult.rem]);
+				vname << "nEmptyVhsTime" << time_ << "." << divresult.quot << "." << divresult.rem;
+				nEmptyVhs[time_][station].set(GRB_DoubleAttr_Obj, cost[divresult.quot][divresult.rem]);
 				nEmptyVhs[time_][station].set(GRB_StringAttr_VarName, vname.str());
 			}
 		}
@@ -116,7 +117,7 @@ int main(int argc, char *argv[]) {
 			// calculate (demand leaving - demand coming) for all stations at period time_
 			int dem[nStations];
 			std::cout << "demand at time " << time_ << "= ";
-			for (int i = 0; i < nStations; i++) {
+			for (int i = 0; i < nStations; ++i) {
 				dem[i] = origin_counts[time_][i] - dest_counts[time_][i];
 				std::cout << origin_counts[time_][i] << " - " << dest_counts[time_][i] << " = " << dem[i] << std::endl;
 			}
@@ -124,8 +125,8 @@ int main(int argc, char *argv[]) {
 			GRBLinExpr reb_dep = 0;
 			GRBLinExpr reb_arr = 0;
 
-			for(int depSt = 0; depSt < nStations; depSt++){
-				for (int arrSt = 0; arrSt < nStations; arrSt++) {
+			for(int depSt = 0; depSt < nStations; ++depSt){
+				for (int arrSt = 0; arrSt < nStations; ++arrSt) {
 
 					if (depSt != arrSt) {
 						std::cout << "depSt: " << depSt << "arrSt: " << arrSt << std::endl;

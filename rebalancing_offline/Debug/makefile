@@ -43,7 +43,7 @@ all: rebalancing_offline
 rebalancing_offline: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: MacOS X C++ Linker'
-	g++ -L/Library/gurobi602/mac64/lib -o "rebalancing_offline" $(OBJS) $(USER_OBJS) $(LIBS)
+	g++ -L/Library/gurobi602/mac64/lib -stdlib=libstdc++ -o "rebalancing_offline" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
