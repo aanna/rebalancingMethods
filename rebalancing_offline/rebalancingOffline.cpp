@@ -34,28 +34,37 @@ int main(int argc, char *argv[]) {
 	GRBVar** nEmptyVhs = 0; // number of empty vehicles traveling between stations
 	GRBVar** nVhsIdle = 0; // number of vehicles at each station is unknown
 
+	// stations coordinates
 	std::vector<std::vector<double> > stations;
-	//const string stationsFile = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/inputDemand/ecbd_stations21.txt";
-	const string stationsFile = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/stationsXY.txt";
-	readFiles(stationsFile, stations);
-
 	// distances or cost of traveling between the stations
 	// internal vector stores "to where" and external vector stores "from where"
 	std::vector<std::vector<double> > cost;
-	//const string costMatrixFile = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/costMatrixForRebalancingBetween21Stations.txt";
-	const string costMatrixFile = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/costM3x3.txt";
-	readFiles(costMatrixFile, cost);
-
 	// origin counts
 	std::vector<std::vector<double> > origin_counts;
-	//const string originCountsFile = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/origCounts_reb1800_stations21_updated.txt";
-	const string originCountsFile = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/origCounts.txt";
-	readFiles(originCountsFile, origin_counts);
-
 	// destination counts
 	std::vector<std::vector<double> > dest_counts;
-	//const string destinationCountsFile = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/destCounts_reb1800_stations21_updated.txt";
+	double cost_of_idle_veh = 9999999;
+
+	// input and output files declaration
+	// simple_model
+	const string stationsFile = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/stationsXY.txt";
+	const string costMatrixFile = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/costM3x3.txt";
+	const string originCountsFile = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/origCounts.txt";
 	const string destinationCountsFile = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/destCounts.txt";
+	const string modelOutput = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/output_rebalancing.lp";
+	const string solutionOutput = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/solution.sol";
+
+	// simmobility files
+	//	const string stationsFile = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/inputDemand/ecbd_stations21.txt";
+	//	const string costMatrixFile = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/costMatrixForRebalancingBetween21Stations.txt";
+	//	const string originCountsFile = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/origCounts_reb1800_stations21_updated.txt";
+	//	const string destinationCountsFile = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/destCounts_reb1800_stations21_updated.txt";
+	//	const string modelOutput = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/optimizationOut/output_rebalancing.lp";
+	//	const string solutionOutput = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/optimizationOut/solution.sol";
+
+	readFiles(stationsFile, stations);
+	readFiles(costMatrixFile, cost);
+	readFiles(originCountsFile, origin_counts);
 	readFiles(destinationCountsFile, dest_counts);
 
 	try {
@@ -80,6 +89,12 @@ int main(int argc, char *argv[]) {
 		for ( time_ = 0; time_ < nRebPeriods; ++time_) {
 			nVhsIdle[time_] = model.addVars(nStations);
 			model.update();
+			for (station = 0; station < nStations; ++station) {
+				ostringstream cname;
+				cname << "IdleVhs." << time_ << "." << station;
+				nVhsIdle[time_][station].set(GRB_DoubleAttr_Obj, cost_of_idle_veh);
+				nVhsIdle[time_][station].set(GRB_StringAttr_VarName, cname.str());
+			}
 		}
 		// Create decision variables -> how many vehicles to move at each period of time from station i to station j
 		nEmptyVhs = new GRBVar* [nRebPeriods];
@@ -88,10 +103,10 @@ int main(int argc, char *argv[]) {
 			nEmptyVhs[time_] = model.addVars(nStSquare);
 			model.update();
 
-			for(station = 0; station < (nStSquare); ++station){
+			for(station = 0; station < nStSquare; ++station){
 				ostringstream vname;
 				divresult = div (station, nStations);
-				vname << "nEmptyVhsTime" << time_ << "." << station << "."<< divresult.quot << "." << divresult.rem;
+				vname << "nEmptyVhsTime." << time_ << "." << station << "."<< divresult.quot << "." << divresult.rem;
 				std::cout << "nEmptyVhsTime." << time_ << ".indx." << station << ".from."<< divresult.quot << ".to." << divresult.rem << std:: endl;
 				nEmptyVhs[time_][station].set(GRB_DoubleAttr_Obj, cost[divresult.quot][divresult.rem]);
 				nEmptyVhs[time_][station].set(GRB_StringAttr_VarName, vname.str());
@@ -143,6 +158,10 @@ int main(int argc, char *argv[]) {
 						//std::cout << "reb_arr to = " << idx2 << std::endl;
 					}
 				}
+				if (reb_arr.size() > 0) {
+					reb_arr += nVhsIdle[time_][depSt];
+				}
+
 				ostringstream cname;
 				cname << "Demand" << time_ << "." << depSt;
 				model.addConstr(reb_arr - reb_dep >= dem[depSt], cname.str());
@@ -153,7 +172,7 @@ int main(int argc, char *argv[]) {
 		}
 		// Solve
 		model.optimize();
-		model.write("/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/output_rebalancing.lp");
+		model.write(modelOutput);
 
 		cout << "\nTOTAL EMPTY VH DISTANCE: " << model.get(GRB_DoubleAttr_ObjVal) << endl;
 		cout << "SOLUTION:" << endl;
@@ -172,7 +191,7 @@ int main(int argc, char *argv[]) {
 			}
 		}
 
-		model.write("/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/solution.sol");
+		model.write(solutionOutput);
 
 	} catch(GRBException e) {
 		cout << "Error code = " << e.getErrorCode() << endl;
