@@ -89,7 +89,8 @@ int main(int argc, char *argv[]) {
 			for(station = 0; station < (nStSquare); ++station){
 				ostringstream vname;
 				divresult = div (station, nStations);
-				vname << "nEmptyVhsTime" << time_ << "." << divresult.quot << "." << divresult.rem;
+				vname << "nEmptyVhsTime" << time_ << "." << station << "."<< divresult.quot << "." << divresult.rem;
+				std::cout << "nEmptyVhsTime." << time_ << ".indx." << station << ".from."<< divresult.quot << ".to." << divresult.rem << std:: endl;
 				nEmptyVhs[time_][station].set(GRB_DoubleAttr_Obj, cost[divresult.quot][divresult.rem]);
 				nEmptyVhs[time_][station].set(GRB_StringAttr_VarName, vname.str());
 			}
@@ -126,42 +127,47 @@ int main(int argc, char *argv[]) {
 			GRBLinExpr reb_arr = 0;
 
 			for(int depSt = 0; depSt < nStations; ++depSt){
+				std::cout << "departure station: " << depSt << std::endl;
 				for (int arrSt = 0; arrSt < nStations; ++arrSt) {
 
 					if (depSt != arrSt) {
-						std::cout << "depSt: " << depSt << "arrSt: " << arrSt << std::endl;
 						int idx = stationMatrix[depSt][arrSt];
+						std:: cout << "indx[" << depSt << "][" << arrSt << "] = " << idx << std::endl;
 						int idx2 = stationMatrix[arrSt][depSt];
+						std:: cout << "indx2[" << arrSt << "][" << depSt << "] = " << idx2 << std::endl;
 						reb_dep += nEmptyVhs[time_][idx];
-						std::cout << "reb_dep from = " << idx << " ,";
+						//std::cout << "reb_dep from = " << idx << " ,";
 						reb_arr += nEmptyVhs[time_][idx2];
-						std::cout << "reb_arr to = " << idx2 << std::endl;
+						//std::cout << "reb_arr to = " << idx2 << std::endl;
 					}
 				}
 				ostringstream cname;
 				cname << "Demand" << time_ << "." << depSt;
 				model.addConstr(reb_arr - reb_dep >= dem[depSt], cname.str());
+				std::cout << "Constraint " << depSt << " reb_dep.size() = " << reb_dep.size() << " reb_arr.size() = " << reb_dep.size()  << std::endl;
+				reb_arr.clear();
+				reb_dep.clear();
 			}
+		}
+		// Solve
+		model.optimize();
+		model.write("/Users/katarzyna/Dropbox/matlab/output_rebalancing.lp");
 
-			// Solve
-			model.optimize();
-			model.write("/Users/katarzyna/Dropbox/matlab/output_rebalancing.lp");
+		cout << "\nTOTAL EMPTY VH DISTANCE: " << model.get(GRB_DoubleAttr_ObjVal) << endl;
+		cout << "SOLUTION:" << endl;
 
-			cout << "\nTOTAL EMPTY VH DISTANCE: " << model.get(GRB_DoubleAttr_ObjVal) << endl;
-			cout << "SOLUTION:" << endl;
+		for (time_ = 0; time_ < nRebPeriods; ++time_){
 
-			//		for (time_ = 0; time_ < nRebPeriods; ++time_){
-			//
-			//			for (station = 0; station < nStations; ++station){
-			//				divresult = div (station, nStations);
-			//				if((int)floor(station/nStations) != divresult.rem ) {
-			//					fromToV[station] = stationMatrix[(int)floor(station/nStations)][divresult.rem];
-			//
-			//					cout << "From station: " << (int)floor(station/nStations) <<
-			//							" to station: " << divresult.rem << " send "  <<
-			//							nEmptyVhs[time_][fromToV[station]].get(GRB_DoubleAttr_X) << " vehicles." << endl;
-			//				}
-			//			}
+			for(int depSt = 0; depSt < nStations; ++depSt){
+				for (int arrSt = 0; arrSt < nStations; ++arrSt) {
+					if(depSt != arrSt) {
+						int idx = stationMatrix[depSt][arrSt];
+						cout << "At time " << time_ << ", from station " << depSt <<
+								" to station " << arrSt << " send "  <<
+								nEmptyVhs[time_][idx].get(GRB_DoubleAttr_X) << " vehicles." << endl;
+					}
+				}
+			}
 		}
 
 	} catch(GRBException e) {

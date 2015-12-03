@@ -45,9 +45,9 @@
 								<option id="gnu.cpp.compiler.option.include.paths.1767298291" name="Include paths (-I)" superClass="gnu.cpp.compiler.option.include.paths" valueType="includePath">
 									<listOptionValue builtIn="false" value="/Library/gurobi602/mac64/include"/>
 									<listOptionValue builtIn="false" value="/usr/include"/>
-									<listOptionValue builtIn="false" value="../usr/local/include"/>
 									<listOptionValue builtIn="false" value="/usr/include/c++/4.2.1"/>
 									<listOptionValue builtIn="false" value="/usr/include/c++/4.2.1/backward"/>
+									<listOptionValue builtIn="false" value="/usr/local/include"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.634998207" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
 							</tool>
