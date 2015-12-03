@@ -26,6 +26,8 @@ void readFiles(const string filename, std::vector<std::vector<double> >& cost);
 // the internal vector stores number of counts for each station at the same time interval while
 // the external vector stores different periods of time
 
+// void outputFile(const string filename, std::vector<std::vector<int> >& cost);
+
 int main(int argc, char *argv[]) {
 
 	GRBEnv* env = 0;
@@ -151,7 +153,7 @@ int main(int argc, char *argv[]) {
 		}
 		// Solve
 		model.optimize();
-		model.write("/Users/katarzyna/Dropbox/matlab/output_rebalancing.lp");
+		model.write("/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/output_rebalancing.lp");
 
 		cout << "\nTOTAL EMPTY VH DISTANCE: " << model.get(GRB_DoubleAttr_ObjVal) << endl;
 		cout << "SOLUTION:" << endl;
@@ -169,6 +171,8 @@ int main(int argc, char *argv[]) {
 				}
 			}
 		}
+
+		model.write("/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/solution.sol");
 
 	} catch(GRBException e) {
 		cout << "Error code = " << e.getErrorCode() << endl;
@@ -216,3 +220,21 @@ void readFiles(const string filename, std::vector<std::vector<double> >& cost) {
 		cost.push_back(v_temp);
 	}
 }
+
+// write solution to file
+//void outputFile(const string filename, std::vector<std::vector<int> >& cost) {
+//	std::ofstream out(filename.c_str());
+//
+//	if (!out.good()) {
+//		std::cout << "Cannot write: " << filename << std::endl;
+//	}
+//
+//	for(int i = 0; i < cost.size(); ++i) {
+//		std::cout << "time " << i << '\n';
+//
+//		   for (vector<int>::const_iterator iter = cost[i].begin(); iter != cost[i].end(); ++iter) {
+//		        std::cout << *iter << ", ";
+//		    }
+//		   std::cout << std::endl;
+//	}
+//}
