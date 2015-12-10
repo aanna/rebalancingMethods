@@ -1,7 +1,9 @@
 /*
  * rebalancingOffline.cpp
  *
- * Offline, static method of rebalancing: here is no queuing and each passenger is picked up upon arrival
+ * Offline, static method of rebalancing: no queuing and each passenger is picked up upon arrival
+ * Algorithm minimizes number of vehicles which is needed to satisfy the entire demand
+ * Rebalancing between stations is taken into account
  *
  *
  *  Created on: Nov 24, 2015
@@ -32,18 +34,21 @@ int main(int argc, char *argv[]) {
 
 	GRBEnv* env = 0;
 	GRBVar** nEmptyVhs = 0; // number of empty vehicles traveling between stations
-	GRBVar** nVhsIdle = 0; // number of vehicles at each station is unknown
+	GRBVar** nVhs_idle = 0; // number of vehicles at each station is unknown
 
 	// stations coordinates
 	std::vector<std::vector<double> > stations;
 	// distances or cost of traveling between the stations
 	// internal vector stores "to where" and external vector stores "from where"
 	std::vector<std::vector<double> > cost;
-	// origin counts
+	// origin counts, size of n_rebalancing_periods x n_stations
 	std::vector<std::vector<double> > origin_counts;
-	// destination counts
+	// destination counts, size of n_rebalancing_periods x n_stations
 	std::vector<std::vector<double> > dest_counts;
-	double cost_of_idle_veh = 9999999;
+	// cost of one idle vehicle in the system, when objective minimizes # vehicles, then set cost to 1,
+	// when objective minimizes number of rebalancing vehicles then set vost to a huge number
+	// (to make sure that this is always more expensive that rebalancing as it adds more vehicles to the system)
+	double cost_of_idle_veh = 1;
 
 	// input and output files declaration
 	// simple_model
@@ -82,18 +87,23 @@ int main(int argc, char *argv[]) {
 
 		// for each station and each rebalancing period --> and decision variables
 		// Create decision variables -> how many vehicles should be idling at each period of time and each station
-		nVhsIdle = new GRBVar* [nRebPeriods];
+		nVhs_idle = new GRBVar* [nRebPeriods];
 		int station;
 		int time_;
 		div_t divresult;
 		for ( time_ = 0; time_ < nRebPeriods; ++time_) {
-			nVhsIdle[time_] = model.addVars(nStations);
+			nVhs_idle[time_] = model.addVars(nStations);
 			model.update();
 			for (station = 0; station < nStations; ++station) {
 				ostringstream cname;
 				cname << "IdleVhs." << time_ << "." << station;
-				nVhsIdle[time_][station].set(GRB_DoubleAttr_Obj, cost_of_idle_veh);
-				nVhsIdle[time_][station].set(GRB_StringAttr_VarName, cname.str());
+				if (time_ == 0) {
+					nVhs_idle[time_][station].set(GRB_DoubleAttr_Obj, cost_of_idle_veh);
+					nVhs_idle[time_][station].set(GRB_StringAttr_VarName, cname.str());
+				} else {
+					nVhs_idle[time_][station].set(GRB_DoubleAttr_Obj, 0.0);
+					nVhs_idle[time_][station].set(GRB_StringAttr_VarName, cname.str());
+				}
 			}
 		}
 		// Create decision variables -> how many vehicles to move at each period of time from station i to station j
@@ -107,8 +117,8 @@ int main(int argc, char *argv[]) {
 				ostringstream vname;
 				divresult = div (station, nStations);
 				vname << "nEmptyVhsTime." << time_ << "." << station << "."<< divresult.quot << "." << divresult.rem;
-				std::cout << "nEmptyVhsTime." << time_ << ".indx." << station << ".from."<< divresult.quot << ".to." << divresult.rem << std:: endl;
-				nEmptyVhs[time_][station].set(GRB_DoubleAttr_Obj, cost[divresult.quot][divresult.rem]);
+				// std::cout << "nEmptyVhsTime." << time_ << ".indx." << station << ".from."<< divresult.quot << ".to." << divresult.rem << std:: endl;
+				nEmptyVhs[time_][station].set(GRB_DoubleAttr_Obj, 0); // cost[divresult.quot][divresult.rem]
 				nEmptyVhs[time_][station].set(GRB_StringAttr_VarName, vname.str());
 			}
 		}
@@ -134,42 +144,101 @@ int main(int argc, char *argv[]) {
 		for ( time_ = 0; time_ < nRebPeriods; ++time_) {
 			// calculate (demand leaving - demand coming) for all stations at period time_
 			int dem[nStations];
-			std::cout << "demand at time " << time_ << "= ";
+			// std::cout << "demand at time " << time_ << "= ";
 			for (int i = 0; i < nStations; ++i) {
 				dem[i] = origin_counts[time_][i] - dest_counts[time_][i];
-				std::cout << origin_counts[time_][i] << " - " << dest_counts[time_][i] << " = " << dem[i] << std::endl;
+				// std::cout << origin_counts[time_][i] << " - " << dest_counts[time_][i] << " = " << dem[i] << std::endl;
 			}
 
 			GRBLinExpr reb_dep = 0;
 			GRBLinExpr reb_arr = 0;
 
 			for(int depSt = 0; depSt < nStations; ++depSt){
-				std::cout << "departure station: " << depSt << std::endl;
+				// std::cout << "departure station: " << depSt << std::endl;
 				for (int arrSt = 0; arrSt < nStations; ++arrSt) {
 
 					if (depSt != arrSt) {
 						int idx = stationMatrix[depSt][arrSt];
-						std:: cout << "indx[" << depSt << "][" << arrSt << "] = " << idx << std::endl;
+						// std:: cout << "indx[" << depSt << "][" << arrSt << "] = " << idx << std::endl;
 						int idx2 = stationMatrix[arrSt][depSt];
-						std:: cout << "indx2[" << arrSt << "][" << depSt << "] = " << idx2 << std::endl;
+						// std:: cout << "indx2[" << arrSt << "][" << depSt << "] = " << idx2 << std::endl;
 						reb_dep += nEmptyVhs[time_][idx];
-						//std::cout << "reb_dep from = " << idx << " ,";
+						// std::cout << "reb_dep from = " << idx << " ,";
 						reb_arr += nEmptyVhs[time_][idx2];
-						//std::cout << "reb_arr to = " << idx2 << std::endl;
+						// std::cout << "reb_arr to = " << idx2 << std::endl;
 					}
 				}
-				if (reb_arr.size() > 0) {
-					reb_arr += nVhsIdle[time_][depSt];
-				}
+				//				if (reb_arr.size() > 0) {
+				//					reb_arr += nVhs_idle[time_][depSt];
+				//				}
 
 				ostringstream cname;
 				cname << "Demand" << time_ << "." << depSt;
-				model.addConstr(reb_arr - reb_dep >= dem[depSt], cname.str());
-				std::cout << "Constraint " << depSt << " reb_dep.size() = " << reb_dep.size() << " reb_arr.size() = " << reb_dep.size()  << std::endl;
+				model.addConstr(reb_arr - reb_dep >= dem[depSt] - nVhs_idle[time_][depSt], cname.str());
+				std::cout << "Constraint 1: " << depSt << " reb_dep.size() = " << reb_dep.size() <<
+						" reb_arr.size() = " << reb_dep.size()  << std::endl;
 				reb_arr.clear();
 				reb_dep.clear();
 			}
 		}
+
+		// Constraint 2: # of vehicles at time t == # of vehicles at time (t-1)
+		int total_origin = 0;
+		int total_origin_prev = 0;
+		int total_origin_first = 0;
+		GRBLinExpr total_idle_vh = 0;
+		GRBLinExpr total_idle_vh_prev = 0;
+		GRBLinExpr total_idle_vh_first = 0;
+		for ( time_ = 0; time_ < nRebPeriods; ++time_) {
+			std::cout << "time_ = " << time_ << std::endl;
+
+			for(int depSt = 0; depSt < nStations; ++depSt){
+				total_idle_vh += nVhs_idle[time_][depSt];
+				total_origin += origin_counts[time_][depSt];
+				std::cout << "origin_counts[time_][depSt] = " << origin_counts[time_][depSt] << std::endl;
+			}
+//			std::cout << "total_idle_vh = " << total_idle_vh <<
+//					"and total_origin = " << total_origin << std:: endl;
+
+			if (time_ == 0) {
+				total_idle_vh_prev = total_idle_vh;
+				total_origin_prev = total_origin;
+				total_idle_vh_first = total_idle_vh;
+				total_origin_first = total_origin;
+				std::cout << "within time == 0: total_idle_vh_prev = " << total_idle_vh_prev <<
+						"and total_origin_prev = " << total_origin_prev << std:: endl;
+				total_idle_vh.clear();
+				total_origin = 0;
+
+			} else if(time_ == (nRebPeriods - 1)) {
+				std::cout << "time_ == (nStations - 1), time = " << time_ << std::endl;
+				// last constraint: should be (veh in last period == veh in first period)
+				ostringstream cname;
+				cname << "VehiclesTime." << time_;
+				model.addConstr(total_idle_vh + total_origin == total_origin_first + total_idle_vh_first, cname.str());
+				std::cout << "Constraint 2 last: " << total_idle_vh << " + " << total_origin << " = " <<
+						total_origin_first << " + " << total_idle_vh_first << std::endl;
+
+			} else {
+				ostringstream cname;
+				cname << "VehiclesTime." << time_;
+				model.addConstr(total_idle_vh + total_origin == total_origin_prev + total_idle_vh_prev, cname.str());
+				std::cout << "Constraint 2: " << total_idle_vh << " + " << total_origin << " = " <<
+						total_origin_prev << " + " << total_idle_vh_prev << std::endl;
+
+				total_idle_vh_prev.clear();
+				total_origin_prev = 0;
+				total_idle_vh_prev = total_idle_vh;
+				total_origin_prev = total_origin;
+//				std::cout << "in else: total_idle_vh_prev = " << total_idle_vh_prev <<
+//						"and total_origin_prev = " << total_origin_prev << " total_idle_vh = " << total_idle_vh <<
+//						"and total_origin = " << total_origin_prev << std:: endl;
+
+				total_idle_vh.clear();
+				total_origin = 0;
+			}
+		}
+
 		// Solve
 		model.optimize();
 		model.write(modelOutput);
@@ -183,11 +252,20 @@ int main(int argc, char *argv[]) {
 				for (int arrSt = 0; arrSt < nStations; ++arrSt) {
 					if(depSt != arrSt) {
 						int idx = stationMatrix[depSt][arrSt];
-						cout << "At time " << time_ << ", from station " << depSt <<
+						cout << "At time " << time_ << ", rebalancing from station " << depSt <<
 								" to station " << arrSt << " send "  <<
 								nEmptyVhs[time_][idx].get(GRB_DoubleAttr_X) << " vehicles." << endl;
 					}
 				}
+			}
+		}
+
+		for (time_ = 0; time_ < nRebPeriods; ++time_){
+			for(int depSt = 0; depSt < nStations; ++depSt){
+				cout << "At time " << time_ << ", # of idling vhs at station " << depSt <<
+						" = " <<  nVhs_idle[time_][depSt].get(GRB_DoubleAttr_X) <<
+						" and total # of vehicles " << nVhs_idle[time_][depSt].get(GRB_DoubleAttr_X) +
+						origin_counts[time_][depSt]<< endl;
 			}
 		}
 
