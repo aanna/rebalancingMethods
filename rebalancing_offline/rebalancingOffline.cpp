@@ -141,13 +141,22 @@ int main(int argc, char *argv[]) {
 			}
 		}
 
+		// find the anticipated demand for current rebalancing period
 		for ( time_ = 0; time_ < nRebPeriods; ++time_) {
-			// calculate (demand leaving - demand coming) for all stations at period time_
+			// calculate (trips departing - trips arriving) for all stations during the next time interval (time_ + 1)
+			// store the demand counts in dem[nStations]
 			int dem[nStations];
 			// std::cout << "demand at time " << time_ << "= ";
 			for (int i = 0; i < nStations; ++i) {
-				dem[i] = origin_counts[time_][i] - dest_counts[time_][i];
-				// std::cout << origin_counts[time_][i] << " - " << dest_counts[time_][i] << " = " << dem[i] << std::endl;
+
+				// if we are not in the last interval then we just search for the anticipated demand in the next interval
+				// otherwise, we take the first interval to close the loop
+				if (time_ + 1 != nRebPeriods) {
+					dem[i] = origin_counts[time_ + 1][i] - dest_counts[time_ + 1][i];
+					// std::cout << origin_counts[time_ + 1][i] << " - " << dest_counts[time_ + 1][i] << " = " << dem[i] << std::endl;
+				} else {
+					dem[i] = origin_counts[0][i] - dest_counts[0][i];
+				}
 			}
 
 			GRBLinExpr reb_dep = 0;
@@ -197,8 +206,8 @@ int main(int argc, char *argv[]) {
 				total_origin += origin_counts[time_][depSt];
 				std::cout << "origin_counts[time_][depSt] = " << origin_counts[time_][depSt] << std::endl;
 			}
-//			std::cout << "total_idle_vh = " << total_idle_vh <<
-//					"and total_origin = " << total_origin << std:: endl;
+			//			std::cout << "total_idle_vh = " << total_idle_vh <<
+			//					"and total_origin = " << total_origin << std:: endl;
 
 			if (time_ == 0) {
 				total_idle_vh_prev = total_idle_vh;
@@ -230,9 +239,9 @@ int main(int argc, char *argv[]) {
 				total_origin_prev = 0;
 				total_idle_vh_prev = total_idle_vh;
 				total_origin_prev = total_origin;
-//				std::cout << "in else: total_idle_vh_prev = " << total_idle_vh_prev <<
-//						"and total_origin_prev = " << total_origin_prev << " total_idle_vh = " << total_idle_vh <<
-//						"and total_origin = " << total_origin_prev << std:: endl;
+				//				std::cout << "in else: total_idle_vh_prev = " << total_idle_vh_prev <<
+				//						"and total_origin_prev = " << total_origin_prev << " total_idle_vh = " << total_idle_vh <<
+				//						"and total_origin = " << total_origin_prev << std:: endl;
 
 				total_idle_vh.clear();
 				total_origin = 0;
@@ -243,7 +252,7 @@ int main(int argc, char *argv[]) {
 		model.optimize();
 		model.write(modelOutput);
 
-		cout << "\nTOTAL EMPTY VH DISTANCE: " << model.get(GRB_DoubleAttr_ObjVal) << endl;
+		cout << "\nNUMBER OF EMPTY VEHICLES: " << model.get(GRB_DoubleAttr_ObjVal) << endl;
 		cout << "SOLUTION:" << endl;
 
 		for (time_ = 0; time_ < nRebPeriods; ++time_){
