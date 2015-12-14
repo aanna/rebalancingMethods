@@ -78,6 +78,15 @@ int main(int argc, char *argv[]) {
 	readFiles(originCountsFile, origin_counts);
 	readFiles(destinationCountsFile, dest_counts);
 
+	//round cost of traveling between stations to multiply of the rebalancing period
+	int reb_period = 2; // in minutes
+	std::vector<std::vector<int> > rounded_cost;
+	for (int i = 0; i < cost.size(); i++){
+		for (int j = 0; j < cost[0].size(); j++){
+			rounded_cost[i][j] = roundUp((int)cost[i][j], reb_period);
+		}
+	}
+
 	try {
 
 		// number of stations in the network
@@ -219,24 +228,9 @@ int main(int argc, char *argv[]) {
 			// store the demand counts in dem_antic[nStations]
 
 			for (int i = 0; i < nStations; ++i) {
-				dem_curr[i] = origin_counts[time_][i] - dest_counts[time_][i];
+				// current demand = arriving vehicles - departing vehicles
+				dem_curr[i] = dest_counts[time_][i] - origin_counts[time_][i];
 				// std::cout << origin_counts[time_][i] << " - " << dest_counts[time_][i] << " = " << dem_curr[i] << std::endl;
-			}
-
-			// Anticipated demand (demand in the next rebalancing period)
-			int dem_next[nStations] = 0;
-			// calculate (trips departing - trips arriving) for all stations during the next time interval (time_ + 1)
-			// store the demand counts in dem_next[nStations]
-
-			for (int i = 0; i < nStations; ++i) {
-				// if we are not in the last interval then we just search for the anticipated demand in the next interval
-				// otherwise, we compare against the first interval to close the loop
-				if (time_ + 1 != nRebPeriods) {
-					dem_next[i] = origin_counts[time_ + 1][i] - dest_counts[time_ + 1][i];
-					// std::cout << origin_counts[time_ + 1][i] << " - " << dest_counts[time_ + 1][i] << " = " << dem_next[i] << std::endl;
-				} else {
-					dem_next[i] = origin_counts[0][i] - dest_counts[0][i];
-				}
 			}
 
 			GRBLinExpr reb_dep = 0;
@@ -248,21 +242,23 @@ int main(int argc, char *argv[]) {
 
 					if (depSt != arrSt) {
 						int idx = stationMatrix[depSt][arrSt];
-						// std:: cout << "indx[" << depSt << "][" << arrSt << "] = " << idx << std::endl;
 						int idx2 = stationMatrix[arrSt][depSt];
-						// std:: cout << "indx2[" << arrSt << "][" << depSt << "] = " << idx2 << std::endl;
 						reb_dep += empty_veh[time_][idx];
-						// std::cout << "reb_dep from = " << idx << " ,";
-						reb_arr += empty_veh[time_][idx2];
-						// std::cout << "reb_arr to = " << idx2 << std::endl;
+						int t_veh_departed = rounded_cost[depSt][arrSt];
+						reb_arr += empty_veh[t_veh_departed][idx2];
 					}
 				}
-
 				ostringstream cname;
-				cname << "SatisfyDemand" << time_ << "." << depSt;
-				// for all stations i: supply must be equal or greater than the demand
-				// supply: vehicles arriving - departing + idle > demand departing - arriving
-				model.addConstr(reb_arr - reb_dep + vhs_st_i[time_][depSt] >= dem_next[depSt], cname.str());
+				cname << "available_veh" << time_ << "." << depSt;
+				if (time_ != 0) {
+					model.addConstr(vhs_st_i[time_][depSt] ==
+							vhs_st_i[time_ - 1][depSt] + reb_arr - reb_dep + dem_curr[depSt], cname.str());
+				} else {
+					// if we are in the first interval then we compare against the last interval of the previous day
+					// in that case I am comparing against the last interval of the same day
+					model.addConstr(vhs_st_i[time_][depSt] ==
+							vhs_st_i[nRebPeriods - 1][depSt] + reb_arr - reb_dep + dem_curr[depSt], cname.str());
+				}
 				std::cout << "Constraint 1: " << time_  << "." << depSt << " reb_dep.size() = " << reb_dep.size() <<
 						" reb_arr.size() = " << reb_arr.size()  << std::endl;
 				reb_arr.clear();
