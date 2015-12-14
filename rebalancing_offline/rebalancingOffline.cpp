@@ -364,7 +364,7 @@ int main(int argc, char *argv[]) {
 				model.addConstr(in_transit[time_] ==
 										in_transit[nRebPeriods - 1] + (reb_dep - reb_arr) + total_dem, cname.str());
 			}
-			std::cout << "Constraint 4: " << time_  << " in_transit = " << in_transit  << std::endl;
+			std::cout << "Constraint 4: " << time_  << " in_transit = " << in_transit << std::endl;
 			reb_arr.clear();
 			reb_dep.clear();
 		}
@@ -386,28 +386,31 @@ int main(int argc, char *argv[]) {
 						int idx = stationMatrix[depSt][arrSt];
 						cout << "At time " << time_ << ", rebalancing from station " << depSt <<
 								" to station " << arrSt << " send "  <<
-								nEmptyVhs[time_][idx].get(GRB_DoubleAttr_X) << " vehicles." << endl;
+								empty_veh[time_][idx].get(GRB_DoubleAttr_X) << " vehicles." << std::endl;
 					}
 				}
 			}
 		}
 
 		for (time_ = 0; time_ < nRebPeriods; ++time_){
-			for(int depSt = 0; depSt < nStations; ++depSt){
-				cout << "At time " << time_ << ", # of idling vhs at station " << depSt <<
-						" = " <<  vhs_parked_i[time_][depSt].get(GRB_DoubleAttr_X) <<
-						" and total # of vehicles " << vhs_parked_i[time_][depSt].get(GRB_DoubleAttr_X) +
-						origin_counts[time_][depSt]<< endl;
+			int veh_total_atT = 0;
+			for(int arrSt = 0; arrSt < nStations; ++arrSt){
+				veh_total_atT += vhs_st_i[time_][arrSt].get(GRB_DoubleAttr_X);
+			}
+
+				cout << "At time " << time_ << ", # of available vhs at station " << depSt <<
+						" = " <<  vhs_st_i[time_][depSt].get(GRB_DoubleAttr_X) <<
+						" and total # of vehicles " << veh_total_atT + in_transit[time_]<< std::endl;
 			}
 		}
 
 		model.write(solutionOutput);
 
 	} catch(GRBException e) {
-		cout << "Error code = " << e.getErrorCode() << endl;
-		cout << e.getMessage() << endl;
+		cout << "Error code = " << e.getErrorCode() << std::endl;
+		cout << e.getMessage() << std::endl;
 	} catch(...) {
-		cout << "Exception during optimization" << endl;
+		cout << "Exception during optimization" << std::endl;
 	}
 	return 0;
 }
