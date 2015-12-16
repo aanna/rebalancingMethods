@@ -126,7 +126,7 @@ int main(int argc, char *argv[]) {
 		int time_;
 		// div_t divresult;
 		for ( time_ = 0; time_ < nRebPeriods; ++time_) {
-			vhs_st_i[time_] = model.addVars(nStations, GRB_INTEGER);
+			vhs_st_i[time_] = model.addVars(nStations); // GRB_INTEGER
 			model.update();
 			for (station = 0; station < nStations; ++station) {
 				ostringstream cname;
@@ -145,7 +145,7 @@ int main(int argc, char *argv[]) {
 		empty_veh = new GRBVar* [nRebPeriods];
 		// number of empty trips in not directly taken into account in the objective function
 		for ( time_ = 0; time_ < nRebPeriods; ++time_) {
-			empty_veh[time_] = model.addVars(nStSquare, GRB_INTEGER);
+			empty_veh[time_] = model.addVars(nStSquare);
 			model.update();
 
 			//			for(station = 0; station < nStSquare; ++station){
@@ -184,14 +184,14 @@ int main(int argc, char *argv[]) {
 		}
 
 		// number of vehicles in transfer at each time slot
-		in_transit = model.addVars(nRebPeriods, GRB_INTEGER);
+		in_transit = model.addVars(nRebPeriods);
 		model.update();
 		for (time_ = 0; time_ < nRebPeriods; ++time_)
 		{
 			ostringstream vname;
 			vname << "in_transit" << time_;
 			if (time_ == 0) {
-				in_transit[time_].set(GRB_DoubleAttr_Obj, 0);
+				in_transit[time_].set(GRB_DoubleAttr_Obj, cost_of_veh);
 				in_transit[time_].set(GRB_StringAttr_VarName, vname.str());
 			} else {
 				in_transit[time_].set(GRB_DoubleAttr_Obj, 0);
@@ -209,66 +209,66 @@ int main(int argc, char *argv[]) {
 		/***********************************************************************************
 		 * Constraint 1: Satisfy the demand at each node at every time interval
 		 ***********************************************************************************/
-		for ( time_ = 0; time_ < nRebPeriods; ++time_) {
-
-			// Anticipated demand (demand in the next rebalancing period)
-			int dem_next[nStations];
-			// calculate (trips departing - trips arriving) for all stations during the next time interval (time_ + 1)
-
-			GRBLinExpr reb_dep = 0;
-			GRBLinExpr reb_arr = 0;
-
-			for (int depSt = 0; depSt < nStations; ++depSt) {
-				// if we are not in the last interval then we just search for the anticipated demand in the next interval
-				// otherwise, we compare against the first interval to close the loop
-				if (time_ + 1 != nRebPeriods) {
-					dem_next[depSt] = origin_counts[time_ + 1][depSt] - dest_counts[time_ + 1][depSt];
-					// std::cout << origin_counts[time_ + 1][i] << " - " << dest_counts[time_ + 1][i] << " = " << dem_next[i] << std::endl;
-				} else {
-					// the next interval is the first interval in the next day
-					dem_next[depSt] = origin_counts[0][depSt] - dest_counts[0][depSt];
-				}
-
-				for (int arrSt = 0; arrSt < nStations; ++arrSt) {
-
-					if (depSt != arrSt) {
-						int idx = stationMatrix[depSt][arrSt];
-						int idx2 = stationMatrix[arrSt][depSt];
-
-						if (time_ + 1 != nRebPeriods) {
-							reb_dep += empty_veh[time_ + 1][idx];
-							int travel_cost = (int) (rounded_cost[depSt][arrSt]/reb_period);
-							if (travel_cost > time_ + 1) {
-								//we have to add the vehicle in the counts for the previous day
-								int dep_time = nRebPeriods + time_ + 1 - travel_cost;
-								reb_arr += empty_veh[dep_time][idx2];
-							} else {
-								int dep_time = time_ + 1 - travel_cost;
-								reb_arr += empty_veh[dep_time][idx2];
-							}
-						} else {
-							// last rebalancing period
-							reb_dep += empty_veh[0][idx];
-							int travel_cost = (int) (rounded_cost[depSt][arrSt]/reb_period);
-							int dep_time = nRebPeriods - travel_cost;
-							reb_arr += empty_veh[dep_time][idx2];
-						}
-					}
-				}
-
-				ostringstream cname;
-				cname << "SatisfyFutureDemand" << time_ << "." << depSt;
-				// for all stations i: supply must be equal or greater than the demand
-				// supply: vehicles arriving - departing + idle > demand departing - arriving
-				model.addConstr(vhs_st_i[time_][depSt] >= dem_next[depSt] + reb_arr - reb_dep, cname.str());
-				std::cout << "Constraint 1:" << time_ << "." << depSt << std::endl;
-			}
-		}
-
-		std::cout << "Constraint set 1 added." << std::endl;
+		//		for ( time_ = 0; time_ < nRebPeriods; ++time_) {
+		//
+		//			// Anticipated demand (demand in the next rebalancing period)
+		//			int dem_next[nStations];
+		//			// calculate (trips departing - trips arriving) for all stations during the next time interval (time_ + 1)
+		//
+		//			GRBLinExpr reb_dep = 0;
+		//			GRBLinExpr reb_arr = 0;
+		//
+		//			for (int depSt = 0; depSt < nStations; ++depSt) {
+		//				// if we are not in the last interval then we just search for the anticipated demand in the next interval
+		//				// otherwise, we compare against the first interval to close the loop
+		//				if (time_ + 1 != nRebPeriods) {
+		//					dem_next[depSt] = origin_counts[time_ + 1][depSt] - dest_counts[time_ + 1][depSt];
+		//					// std::cout << origin_counts[time_ + 1][i] << " - " << dest_counts[time_ + 1][i] << " = " << dem_next[i] << std::endl;
+		//				} else {
+		//					// the next interval is the first interval in the next day
+		//					dem_next[depSt] = origin_counts[0][depSt] - dest_counts[0][depSt];
+		//				}
+		//
+		//				for (int arrSt = 0; arrSt < nStations; ++arrSt) {
+		//
+		//					if (depSt != arrSt) {
+		//						int idx = stationMatrix[depSt][arrSt];
+		//						int idx2 = stationMatrix[arrSt][depSt];
+		//
+		//						if (time_ + 1 != nRebPeriods) {
+		//							reb_dep += empty_veh[time_ + 1][idx];
+		//							int travel_cost = (int) (rounded_cost[depSt][arrSt]/reb_period);
+		//							if (travel_cost > time_ + 1) {
+		//								//we have to add the vehicle in the counts for the previous day
+		//								int dep_time = nRebPeriods + time_ + 1 - travel_cost;
+		//								reb_arr += empty_veh[dep_time][idx2];
+		//							} else {
+		//								int dep_time = time_ + 1 - travel_cost;
+		//								reb_arr += empty_veh[dep_time][idx2];
+		//							}
+		//						} else {
+		//							// last rebalancing period
+		//							reb_dep += empty_veh[0][idx];
+		//							int travel_cost = (int) (rounded_cost[depSt][arrSt]/reb_period);
+		//							int dep_time = nRebPeriods - travel_cost;
+		//							reb_arr += empty_veh[dep_time][idx2];
+		//						}
+		//					}
+		//				}
+		//
+		//				ostringstream cname;
+		//				cname << "SatisfyFutureDemand" << time_ << "." << depSt;
+		//				// for all stations i: supply must be equal or greater than the demand
+		//				// supply: vehicles arriving - departing + idle > demand departing - arriving
+		//				model.addConstr(vhs_st_i[time_][depSt] >= dem_next[depSt] + reb_arr - reb_dep, cname.str());
+		//				std::cout << "Constraint 1:" << time_ << "." << depSt << std::endl;
+		//			}
+		//		}
+		//
+		//		std::cout << "Constraint set 1 added." << std::endl;
 
 		/***********************************************************************************
-		 * Constraint 2: Evolution of the number of vehicles at station i
+		 * Constraint 2: Flow conservation at station i
 		 ***********************************************************************************/
 		for ( time_ = 0; time_ < nRebPeriods; ++time_) {
 			// Current demand
@@ -325,76 +325,76 @@ int main(int argc, char *argv[]) {
 		 * Constraint 3: Number of vehicles in the system is constant over time
 		 ***********************************************************************************/
 
-		GRBLinExpr sum_vi_prev = 0; //< Gurobi Linear Expression, total number of available vehicles at previous time step
-		GRBLinExpr vh_in_transit_prev = 0; //< Gurobi Linear Expression, total number of vehicles in transit at previous time step
-
-		GRBLinExpr sum_vi = 0; //< Gurobi Linear Expression, total number of available vehicles
-		GRBLinExpr vh_in_transit = 0; //< Gurobi Linear Expression, total number of vehicles in transit
-
-
-		for ( time_ = 0; time_ < nRebPeriods; ++time_) {
-			std::cout << "time_ = " << time_ << std::endl;
-
-			for(int depSt = 0; depSt < nStations; ++depSt) {
-				sum_vi += vhs_st_i[time_][depSt];
-			}
-
-			vh_in_transit = in_transit[time_];
-
-			if (time_ == 0) {
-				// I should compare against the last interval so prev should be the last
-				vh_in_transit_prev = in_transit[nRebPeriods - 1];
-				for(int depSt = 0; depSt < nStations; ++depSt) {
-					sum_vi_prev += vhs_st_i[nRebPeriods - 1][depSt];
-				}
-				ostringstream cname;
-				cname << "VehicleConservationT." << time_;
-				// std::cout << "sum_vi.size() = " << sum_vi.size() << std::endl;
-				model.addConstr(sum_vi + vh_in_transit == sum_vi_prev + vh_in_transit_prev, cname.str());
-				sum_vi_prev.clear();
-				vh_in_transit_prev.clear();
-
-				sum_vi_prev = sum_vi;
-				vh_in_transit_prev = vh_in_transit;
-				std::cout << "time == 0: vh_in_transit_prev = " << vh_in_transit_prev << std:: endl;
-				sum_vi.clear();
-				vh_in_transit.clear();
-
-			} else if(time_ == (nRebPeriods - 1)) {
-				std::cout << "time_ == (nStations - 1), time = " << time_ << std::endl;
-				// last rebalancing period: (veh in last period == veh in first period)
-				ostringstream cname;
-				cname << "VehicleConservationT." << time_;
-				// std::cout << "sum_vi.size() = " << sum_vi.size() << std::endl;
-				model.addConstr(sum_vi + vh_in_transit == sum_vi_prev + vh_in_transit_prev, cname.str());
-
-				std::cout << "Constraint 3 last rebalancing period: " << sum_vi << " + " << vh_in_transit
-						<<" = " << sum_vi_prev << " + " << vh_in_transit_prev << std::endl;
-				sum_vi.clear();
-				vh_in_transit.clear();
-				sum_vi_prev.clear();
-				vh_in_transit_prev.clear();
-
-			} else {
-				ostringstream cname;
-				cname << "VehicleConservationT." << time_;
-				std::cout << "sum_vi.size() = " << sum_vi.size() << std::endl;
-				model.addConstr(sum_vi + vh_in_transit == sum_vi_prev + vh_in_transit_prev, cname.str());
-
-				std::cout << "Constraint 3: " << sum_vi << " + " << vh_in_transit
-						<<" = " << sum_vi_prev << " + " << vh_in_transit_prev << std::endl;
-
-				sum_vi_prev = sum_vi;
-				vh_in_transit_prev = vh_in_transit;
-				sum_vi.clear();
-				vh_in_transit.clear();
-			}
-		}
-
-		std::cout << "Constraint set 3 added." << std::endl;
+		//		GRBLinExpr sum_vi_prev = 0; //< Gurobi Linear Expression, total number of available vehicles at previous time step
+		//		GRBLinExpr vh_in_transit_prev = 0; //< Gurobi Linear Expression, total number of vehicles in transit at previous time step
+		//
+		//		GRBLinExpr sum_vi = 0; //< Gurobi Linear Expression, total number of available vehicles
+		//		GRBLinExpr vh_in_transit = 0; //< Gurobi Linear Expression, total number of vehicles in transit
+		//
+		//
+		//		for ( time_ = 0; time_ < nRebPeriods; ++time_) {
+		//			std::cout << "time_ = " << time_ << std::endl;
+		//
+		//			for(int depSt = 0; depSt < nStations; ++depSt) {
+		//				sum_vi += vhs_st_i[time_][depSt];
+		//			}
+		//
+		//			vh_in_transit = in_transit[time_];
+		//
+		//			if (time_ == 0) {
+		//				// I should compare against the last interval so prev should be the last
+		//				vh_in_transit_prev = in_transit[nRebPeriods - 1];
+		//				for(int depSt = 0; depSt < nStations; ++depSt) {
+		//					sum_vi_prev += vhs_st_i[nRebPeriods - 1][depSt];
+		//				}
+		//				ostringstream cname;
+		//				cname << "VehicleConservationT." << time_;
+		//				// std::cout << "sum_vi.size() = " << sum_vi.size() << std::endl;
+		//				model.addConstr(sum_vi + vh_in_transit == sum_vi_prev + vh_in_transit_prev, cname.str());
+		//				sum_vi_prev.clear();
+		//				vh_in_transit_prev.clear();
+		//
+		//				sum_vi_prev = sum_vi;
+		//				vh_in_transit_prev = vh_in_transit;
+		//				std::cout << "time == 0: vh_in_transit_prev = " << vh_in_transit_prev << std:: endl;
+		//				sum_vi.clear();
+		//				vh_in_transit.clear();
+		//
+		//			} else if(time_ == (nRebPeriods - 1)) {
+		//				std::cout << "time_ == (nStations - 1), time = " << time_ << std::endl;
+		//				// last rebalancing period: (veh in last period == veh in first period)
+		//				ostringstream cname;
+		//				cname << "VehicleConservationT." << time_;
+		//				// std::cout << "sum_vi.size() = " << sum_vi.size() << std::endl;
+		//				model.addConstr(sum_vi + vh_in_transit == sum_vi_prev + vh_in_transit_prev, cname.str());
+		//
+		//				std::cout << "Constraint 3 last rebalancing period: " << sum_vi << " + " << vh_in_transit
+		//						<<" = " << sum_vi_prev << " + " << vh_in_transit_prev << std::endl;
+		//				sum_vi.clear();
+		//				vh_in_transit.clear();
+		//				sum_vi_prev.clear();
+		//				vh_in_transit_prev.clear();
+		//
+		//			} else {
+		//				ostringstream cname;
+		//				cname << "VehicleConservationT." << time_;
+		//				std::cout << "sum_vi.size() = " << sum_vi.size() << std::endl;
+		//				model.addConstr(sum_vi + vh_in_transit == sum_vi_prev + vh_in_transit_prev, cname.str());
+		//
+		//				std::cout << "Constraint 3: " << sum_vi << " + " << vh_in_transit
+		//						<<" = " << sum_vi_prev << " + " << vh_in_transit_prev << std::endl;
+		//
+		//				sum_vi_prev = sum_vi;
+		//				vh_in_transit_prev = vh_in_transit;
+		//				sum_vi.clear();
+		//				vh_in_transit.clear();
+		//			}
+		//		}
+		//
+		//		std::cout << "Constraint set 3 added." << std::endl;
 
 		/***********************************************************************************
-		 * Constraint 4: Number of vehicles in transit
+		 * Constraint 4: Conservation of the number of vehicles in transit
 		 ***********************************************************************************/
 		for ( time_ = 0; time_ < nRebPeriods; ++time_) {
 			// Current demand
@@ -465,6 +465,7 @@ int main(int argc, char *argv[]) {
 		double numOfVeh = model.get(GRB_DoubleAttr_ObjVal) + total_demand;
 
 		cout << "\nTOTAL NUMBER OF VEHICLES: " << numOfVeh << std::endl;
+		cout << "\nTOTAL NUMBER OF AVAILABLE VEH AT TIME 0: " << model.get(GRB_DoubleAttr_ObjVal) << std::endl;
 		cout << "SOLUTION:" << endl;
 
 		for (time_ = 0; time_ < nRebPeriods; ++time_){
@@ -482,12 +483,12 @@ int main(int argc, char *argv[]) {
 		}
 
 		for (time_ = 0; time_ < nRebPeriods; ++time_){
-			int veh_total_atT = 0;
 			for(int arrSt = 0; arrSt < nStations; ++arrSt){
-				veh_total_atT += vhs_st_i[time_][arrSt].get(GRB_DoubleAttr_X);
+				cout << "At time " << time_ << " at station " << arrSt <<
+						" number of available vehicles: " << vhs_st_i[time_][arrSt].get(GRB_DoubleAttr_X) << std::endl;
 			}
-
-			cout << "At time " << time_ << " total # of vehicles " << veh_total_atT + in_transit[time_]<< std::endl;
+			cout << "At time " << time_ << " number of vehicles in transit: "
+					<< in_transit[time_].get(GRB_DoubleAttr_X) << std::endl;
 		}
 
 		model.write(solutionOutput);
