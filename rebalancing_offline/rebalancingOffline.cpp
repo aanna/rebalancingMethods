@@ -208,7 +208,7 @@ int main(int argc, char *argv[]) {
 			model.update();
 			for (station = 0; station < nStations; ++station) {
 				ostringstream cname;
-				cname << "passenger_dep_st_i." << time_ << "." << station;
+				cname << "passenger_dep." << time_ << "." << station;
 				passenger_dep[time_][station].set(GRB_DoubleAttr_Obj, 0.0);
 				passenger_dep[time_][station].set(GRB_StringAttr_VarName, cname.str());
 			}
@@ -223,7 +223,7 @@ int main(int argc, char *argv[]) {
 			model.update();
 			for (station = 0; station < nStations; ++station) {
 				ostringstream cname;
-				cname << "passenger_arr_st_i." << time_ << "." << station;
+				cname << "passenger_arr." << time_ << "." << station;
 				passenger_arr[time_][station].set(GRB_DoubleAttr_Obj, 0.0);
 				passenger_arr[time_][station].set(GRB_StringAttr_VarName, cname.str());
 			}
@@ -233,14 +233,14 @@ int main(int argc, char *argv[]) {
 		/***********************************************************************************
 		 * Objective function
 		 ***********************************************************************************/
-		// The objective is to minimize the number of vehicles traveling in the network (and cost associated with it)
+		// The objective is to minimize the number of vehicles traveling in the network
+		// (and cost associated with it)
 		model.set(GRB_IntAttr_ModelSense, 1);
 		model.update();
 
 		/***********************************************************************************
 		 * Constraint 1: Flow conservation at station i
 		 ***********************************************************************************/
-		div_t divresult;
 		for ( time_ = 0; time_ < nRebPeriods; ++time_) {
 
 			GRBLinExpr reb_dep = 0;
@@ -275,12 +275,12 @@ int main(int argc, char *argv[]) {
 				cname << "available_veh" << time_ << "." << depSt;
 				if (time_ != 0) {
 					model.addConstr(vhs_st_i[time_][depSt] ==
-							vhs_st_i[time_ - 1][depSt] + reb_arr - reb_dep - pas_dep + pas_arr, cname.str());
+							vhs_st_i[time_ - 1][depSt] + reb_arr - reb_dep + pas_arr - pas_dep, cname.str());
 				} else {
 					// if we are in the first interval then we compare against the last interval of the previous day
 					// in that case I am comparing against the last interval of the same day
 					model.addConstr(vhs_st_i[0][depSt] ==
-							vhs_st_i[nRebPeriods - 1][depSt] + reb_arr - reb_dep - pas_dep + pas_arr, cname.str());
+							vhs_st_i[nRebPeriods - 1][depSt] + reb_arr - reb_dep + pas_arr - pas_dep, cname.str());
 				}
 				std::cout << "Constraint 1: " << time_  << "." << depSt << std::endl;
 				reb_arr.clear();
@@ -347,7 +347,7 @@ int main(int argc, char *argv[]) {
 
 		/***********************************************************************************
 		 * Constraint 3: Number of departing/arriving passengers should be less or equal
-		 * to the demand in current and previous step
+		 * than the demand in the current and previous step (can't wait longer than 1 time step)
 		 ***********************************************************************************/
 		for ( time_ = 0; time_ < nRebPeriods; ++time_) {
 			for(int depSt = 0; depSt < nStations; ++depSt) {
@@ -361,6 +361,7 @@ int main(int argc, char *argv[]) {
 				ostringstream cname, aname;
 				cname << "dep_passengers." << time_ << depSt;
 				aname << "arr_passengers." << time_ << depSt;
+
 				if (time_ != 0) {
 					model.addConstr(pas_dep <=
 							origin_counts[time_][depSt] + origin_counts[time_ - 1][depSt], cname.str());
@@ -381,29 +382,30 @@ int main(int argc, char *argv[]) {
 		 * Constraint 4: Sum of sent vehicles over the whole day must be equal to sum of
 		 * demand for each station
 		 ***********************************************************************************/
+		int total_dep = 0;
+		int total_arr = 0;
+		GRBLinExpr pas_dep = 0;
+		GRBLinExpr pas_arr = 0;
 		for(int depSt = 0; depSt < nStations; ++depSt) {
-			// Total demand
-			int total_dep = 0;
-			int total_arr = 0;
-			GRBLinExpr pas_dep = 0;
-			GRBLinExpr pas_arr = 0;
 
 			for ( time_ = 0; time_ < nRebPeriods; ++time_) {
 				pas_dep += passenger_dep[time_][depSt];
 				pas_arr += passenger_arr[time_][depSt];
-				total_arr += origin_counts[time_][depSt];
-				total_dep += dest_counts[time_][depSt];
+				total_arr += dest_counts[time_][depSt];
+				total_dep += origin_counts[time_][depSt];
 			}
 
 			ostringstream cname, aname;
-			cname << "dep_passengers." << time_ << "." << depSt;
-			aname << "arr_passengers." << time_ << "." << depSt;
+			cname << "dep_passengers_atSt." << depSt;
+			aname << "arr_passengers_atSt." << depSt;
 
 			model.addConstr(pas_dep == total_dep, cname.str());
 			model.addConstr(pas_arr == total_arr, aname.str());
 
 			pas_dep.clear();
 			pas_arr.clear();
+			total_dep = 0;
+			total_arr = 0;
 		}
 
 		std::cout << "Constraint set 4 added." << std::endl;
@@ -453,7 +455,7 @@ int main(int argc, char *argv[]) {
 
 		std::cout << "PROGRAM COMPLETED WITH SUCCESS." << std::endl;
 
-	} catch(GRBException e) {
+	} catch(GRBException& e) {
 		cout << "Error code = " << e.getErrorCode() << std::endl;
 		cout << e.getMessage() << std::endl;
 	} catch(...) {
