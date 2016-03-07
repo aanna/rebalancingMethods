@@ -282,7 +282,7 @@ int main(int argc, char *argv[]) {
 					model.addConstr(vhs_st_i[0][depSt] ==
 							vhs_st_i[nRebPeriods - 1][depSt] + reb_arr - reb_dep + pas_arr - pas_dep, cname.str());
 				}
-				std::cout << "Constraint 1: " << time_  << "." << depSt << std::endl;
+				//std::cout << "Constraint." << time_  << "." << depSt << std::endl;
 				reb_arr.clear();
 				reb_dep.clear();
 				pas_dep.clear();
@@ -491,12 +491,13 @@ void readFiles(const string filename, std::vector<std::vector<double> >& cost) {
 			v_temp.push_back(cij_temp);
 		}
 
-		std::cout << "Content of vector: ";
-		std::cout.precision(9); // I am loosing the digits when printing
-		for (std::vector<double>::const_iterator i = v_temp.begin(); i != v_temp.end(); ++i) {
-			std::cout << *i << ' ';
-		}
-		std::cout << std::endl;
+/* PRINT WHAT IS INSIDE THE VECTOR */
+//		std::cout << "Content of vector: ";
+//		std::cout.precision(9); // I am loosing the digits when printing
+//		for (std::vector<double>::const_iterator i = v_temp.begin(); i != v_temp.end(); ++i) {
+//			std::cout << *i << ' ';
+//		}
+//		std::cout << std::endl;
 
 		cost.push_back(v_temp);
 	}
