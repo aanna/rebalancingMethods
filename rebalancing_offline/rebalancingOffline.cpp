@@ -14,6 +14,7 @@
 #include <sstream>
 #include <math.h>
 #include <stdlib.h>
+#include <cstring>
 #include "gurobi_c++.h"
 using namespace std;
 
@@ -58,19 +59,19 @@ int main(int argc, char *argv[]) {
 	// input and output files declaration
 	// simple_model
 	//const string stationsFile = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/stationsXY.txt";
-	const string costMatrixFile = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/costM3x3.txt";
-	const string originCountsFile = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/origCounts.txt";
-	const string destinationCountsFile = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/destCounts.txt";
-	const string modelOutput = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/rebalancing_formulation.lp";
-	const string solutionOutput = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/rebalancing_solution.sol";
+	//	const string costMatrixFile = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/costM3x3.txt";
+	//	const string originCountsFile = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/origCounts.txt";
+	//	const string destinationCountsFile = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/destCounts.txt";
+	//	const string modelOutput = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/rebalancing_formulation.lp";
+	//	const string solutionOutput = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/rebalancing_solution.sol";
 
 	// simmobility files
-	//	const string stationsFile = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/inputDemand/ecbd_stations21.txt";
-	//	const string costMatrixFile = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/costMatrixForRebalancingBetween21Stations.txt";
-	//	const string originCountsFile = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/origCounts_reb1800_stations21_updated.txt";
-	//	const string destinationCountsFile = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/destCounts_reb1800_stations21_updated.txt";
-	//	const string modelOutput = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/optimizationOut/output_rebalancing.lp";
-	//	const string solutionOutput = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/optimizationOut/solution.sol";
+	const string stationsFile = "/Users/katarzyna/Dropbox/matlab/2016-03-Demand_generation/facility_location/stations_ecbd34.txt";
+	const string costMatrixFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/RebTime34Stations.txt";
+	const string originCountsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/origCounts_rebEvery900_stations34.txt";
+	const string destinationCountsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/destCounts_rebEvery900_stations34.txt";
+	const string modelOutput = "output_rebalancing.lp";
+	const string solutionOutput = "solution_rebalancing.sol";
 
 	//readFiles(stationsFile, stations);
 	readFiles(costMatrixFile, cost);
@@ -166,7 +167,7 @@ int main(int argc, char *argv[]) {
 					int idx = stationMatrix[depSt][arrSt];
 					ostringstream vname;
 					vname << "nEmptyVhsTime." << time_ << "." << depSt << "."<< arrSt;
-					std::cout << "nEmptyVhsTime." << time_ << "." << depSt << "."<< arrSt << "."<< idx << std::endl;
+					//std::cout << "nEmptyVhsTime." << time_ << "." << depSt << "."<< arrSt << "."<< idx << std::endl;
 
 					if (depSt != arrSt) {
 						// std::cout << "nEmptyVhsTime." << time_ << ".indx." << station << ".from."<< divresult.quot << ".to." << divresult.rem << std:: endl;
@@ -553,19 +554,3 @@ int roundUp(int numToRound, int multiple)
 }
 
 // write solution to file
-//void outputFile(const string filename, std::vector<std::vector<int> >& cost) {
-//	std::ofstream out(filename.c_str());
-//
-//	if (!out.good()) {
-//		std::cout << "Cannot write: " << filename << std::endl;
-//	}
-//
-//	for(int i = 0; i < cost.size(); ++i) {
-//		std::cout << "time " << i << '\n';
-//
-//		   for (vector<int>::const_iterator iter = cost[i].begin(); iter != cost[i].end(); ++iter) {
-//		        std::cout << *iter << ", ";
-//		    }
-//		   std::cout << std::endl;
-//	}
-//}
