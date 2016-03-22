@@ -12,6 +12,7 @@
 #include <sstream>
 #include <math.h>
 #include <stdlib.h>
+#include <cstring>
 #include "gurobi_c++.h"
 using namespace std;
 
