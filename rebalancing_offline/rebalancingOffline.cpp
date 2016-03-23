@@ -148,7 +148,7 @@ int main(int argc, char *argv[]) {
 			model.update();
 			for (station = 0; station < nStations; ++station) {
 				ostringstream cname;
-				cname << "vhs_st_i." << time_ << "." << station;
+				cname << "vhs_st_i," << time_ << "," << station << "," << "0,";
 				if (time_ == 0) {
 					vhs_st_i[time_][station].set(GRB_DoubleAttr_Obj, cost_of_veh);
 					vhs_st_i[time_][station].set(GRB_StringAttr_VarName, cname.str());
@@ -176,7 +176,7 @@ int main(int argc, char *argv[]) {
 
 					int idx = stationMatrix[depSt][arrSt];
 					ostringstream vname;
-					vname << "nEmptyVhsTime." << time_ << "." << depSt << "."<< arrSt;
+					vname << "nEmptyVhsTime," << time_ << "," << depSt << ","<< arrSt << ",";
 					//std::cout << "nEmptyVhsTime." << time_ << "." << depSt << "."<< arrSt << "."<< idx << std::endl;
 
 					if (depSt != arrSt) {
@@ -204,7 +204,7 @@ int main(int argc, char *argv[]) {
 		for (time_ = 0; time_ < nRebPeriods; ++time_)
 		{
 			ostringstream vname;
-			vname << "in_transit" << time_;
+			vname << "in_transit," << time_ << ",0,0,";
 			if (time_ == 0) {
 				in_transit[time_].set(GRB_DoubleAttr_Obj, cost_of_veh);
 				in_transit[time_].set(GRB_StringAttr_VarName, vname.str());
