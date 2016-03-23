@@ -38,6 +38,8 @@ int roundUp(int numToRound, int multiple);
 
 int main(int argc, char *argv[]) {
 
+	bool integer_solution = false;
+
 	GRBEnv* env = 0; //< gurobi env
 	GRBVar** empty_veh = 0; // number of empty vehicles traveling between stations
 	GRBVar** vhs_st_i = 0; // number of vehicles available at station i
@@ -137,7 +139,12 @@ int main(int argc, char *argv[]) {
 		int time_;
 		// div_t divresult;
 		for ( time_ = 0; time_ < nRebPeriods; ++time_) {
-			vhs_st_i[time_] = model.addVars(nStations); // GRB_INTEGER
+
+			if (integer_solution) {
+				vhs_st_i[time_] = model.addVars(nStations, GRB_INTEGER); // GRB_INTEGER
+			} else {
+				vhs_st_i[time_] = model.addVars(nStations);
+			}
 			model.update();
 			for (station = 0; station < nStations; ++station) {
 				ostringstream cname;
@@ -156,19 +163,12 @@ int main(int argc, char *argv[]) {
 		empty_veh = new GRBVar* [nRebPeriods];
 		// number of empty trips in not directly taken into account in the objective function
 		for ( time_ = 0; time_ < nRebPeriods; ++time_) {
+			if (integer_solution) {
+			empty_veh[time_] = model.addVars(nStSquare, GRB_INTEGER);
+			} else {
 			empty_veh[time_] = model.addVars(nStSquare);
-			model.update();
-
-			//			for(station = 0; station < nStSquare; ++station){
-			//				ostringstream vname;
-			//				divresult = div (station, nStations);
-			//				vname << "nEmptyVhsTime." << time_ << "." << station << "."<< divresult.quot << "." << divresult.rem;
-			//				// std::cout << "nEmptyVhsTime." << time_ << ".indx." << station << ".from."<< divresult.quot << ".to." << divresult.rem << std:: endl;
-			//				// in the current implementation the rebalancing cost is equal to zero
-			//				// rebalancing_cost = cost[divresult.quot][divresult.rem];
-			//				empty_veh[time_][station].set(GRB_DoubleAttr_Obj, rebalancing_cost);
-			//				empty_veh[time_][station].set(GRB_StringAttr_VarName, vname.str());
-			//			}
+			}
+				model.update();
 
 			for(int depSt = 0; depSt < nStations; ++depSt){
 				// std::cout << "departure station: " << depSt << std::endl;
@@ -195,8 +195,12 @@ int main(int argc, char *argv[]) {
 		}
 
 		// number of vehicles in transfer at each time slot
+		if (integer_solution) {
+		in_transit = model.addVars(nRebPeriods, GRB_INTEGER);
+		} else {
 		in_transit = model.addVars(nRebPeriods);
-		model.update();
+		}
+			model.update();
 		for (time_ = 0; time_ < nRebPeriods; ++time_)
 		{
 			ostringstream vname;
@@ -344,30 +348,30 @@ int main(int argc, char *argv[]) {
 
 		cout << "\nTOTAL NUMBER OF VEHICLES: " << numOfVeh << std::endl;
 		cout << "\nTOTAL NUMBER OF AVAILABLE VEH AT TIME 0: " << model.get(GRB_DoubleAttr_ObjVal) << std::endl;
-		cout << "SOLUTION:" << endl;
-
-		for (time_ = 0; time_ < nRebPeriods; ++time_){
-
-			for(int depSt = 0; depSt < nStations; ++depSt){
-				for (int arrSt = 0; arrSt < nStations; ++arrSt) {
-					if(depSt != arrSt) {
-						int idx = stationMatrix[depSt][arrSt];
-						cout << "At time " << time_ << ", rebalancing from station " << depSt <<
-								" to station " << arrSt << " send "  <<
-								empty_veh[time_][idx].get(GRB_DoubleAttr_X) << " vehicles." << std::endl;
-					}
-				}
-			}
-		}
-
-		for (time_ = 0; time_ < nRebPeriods; ++time_){
-			for(int arrSt = 0; arrSt < nStations; ++arrSt){
-				cout << "At time " << time_ << " at station " << arrSt <<
-						" number of available vehicles: " << vhs_st_i[time_][arrSt].get(GRB_DoubleAttr_X) << std::endl;
-			}
-			cout << "At time " << time_ << " number of vehicles in transit: "
-					<< in_transit[time_].get(GRB_DoubleAttr_X) << std::endl;
-		}
+		//		cout << "SOLUTION:" << endl;
+		//
+		//		for (time_ = 0; time_ < nRebPeriods; ++time_){
+		//
+		//			for(int depSt = 0; depSt < nStations; ++depSt){
+		//				for (int arrSt = 0; arrSt < nStations; ++arrSt) {
+		//					if(depSt != arrSt) {
+		//						int idx = stationMatrix[depSt][arrSt];
+		//						cout << "At time " << time_ << ", rebalancing from station " << depSt <<
+		//								" to station " << arrSt << " send "  <<
+		//								empty_veh[time_][idx].get(GRB_DoubleAttr_X) << " vehicles." << std::endl;
+		//					}
+		//				}
+		//			}
+		//		}
+		//
+		//		for (time_ = 0; time_ < nRebPeriods; ++time_){
+		//			for(int arrSt = 0; arrSt < nStations; ++arrSt){
+		//				cout << "At time " << time_ << " at station " << arrSt <<
+		//						" number of available vehicles: " << vhs_st_i[time_][arrSt].get(GRB_DoubleAttr_X) << std::endl;
+		//			}
+		//			cout << "At time " << time_ << " number of vehicles in transit: "
+		//					<< in_transit[time_].get(GRB_DoubleAttr_X) << std::endl;
+		//		}
 
 		model.write(solutionOutput);
 
