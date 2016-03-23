@@ -148,7 +148,7 @@ int main(int argc, char *argv[]) {
 			model.update();
 			for (station = 0; station < nStations; ++station) {
 				ostringstream cname;
-				cname << "vhs_st_i," << time_ << "," << station << "," << "0,";
+				cname << "vhs_st_i," << time_ << "," << station << "," << station << ",";
 				if (time_ == 0) {
 					vhs_st_i[time_][station].set(GRB_DoubleAttr_Obj, cost_of_veh);
 					vhs_st_i[time_][station].set(GRB_StringAttr_VarName, cname.str());
@@ -224,6 +224,9 @@ int main(int argc, char *argv[]) {
 		/***********************************************************************************
 		 * Constraint 1: Flow conservation at station i
 		 ***********************************************************************************/
+		// This constraint is set to ensure that the number of vehicles available at station i at time t
+		// is equal to the number of vehicles available at this station in previous time interval
+		// plus whatever has arrived minus whatever has departed
 		for ( time_ = 0; time_ < nRebPeriods; ++time_) {
 			// Current demand
 			int dem_curr[nStations];
@@ -267,17 +270,20 @@ int main(int argc, char *argv[]) {
 					model.addConstr(vhs_st_i[time_][depSt] ==
 							vhs_st_i[nRebPeriods - 1][depSt] + reb_arr - reb_dep + dem_curr[depSt], cname.str());
 				}
-				std::cout << "Constraint 2: " << time_  << "." << depSt << std::endl;
+				std::cout << "Constraint 1: " << time_  << "." << depSt << std::endl;
 				reb_arr.clear();
 				reb_dep.clear();
 			}
 		}
 
-		std::cout << "Constraint set 2 added." << std::endl;
+		std::cout << "Constraint set 1 added." << std::endl;
 
 		/***********************************************************************************
 		 * Constraint 2: Conservation of the number of vehicles in transit
 		 ***********************************************************************************/
+		// This set of constraints ensures that the number of vehicles in transit at time t is equal
+		// to the number of vehicles in transit at previous time period plus all vehicles which departed minus all vehicles
+		// which arrived to the destination
 		for ( time_ = 0; time_ < nRebPeriods; ++time_) {
 			// Current demand
 			int dem_curr[nStations];
@@ -328,7 +334,12 @@ int main(int argc, char *argv[]) {
 			reb_dep.clear();
 		}
 
-		std::cout << "Constraint set 4 added." << std::endl;
+		std::cout << "Constraint set 2 added." << std::endl;
+
+		/***********************************************************************************
+		 * Constraint 3: Number of vehicles in simulation remains constant
+		 ***********************************************************************************/
+		// missing constraint
 
 		/***********************************************************************************
 		 * Solve the problem and print solution to the console and to the file
