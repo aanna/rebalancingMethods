@@ -62,21 +62,21 @@ int main(int argc, char *argv[]) {
 
 	// input and output files declaration
 	// simple_model
-	//const string stationsFile = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/stationsXY.txt";
-	//	const string costMatrixFile = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/costM3x3.txt";
-	//	const string originCountsFile = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/origCounts.txt";
-	//	const string destinationCountsFile = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/destCounts.txt";
-	//	const string modelOutput = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/rebalancing_formulation.lp";
-	//	const string solutionOutput = "/Users/katarzyna/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/rebalancing_solution.sol";
+	const string stationsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/stationsXY.txt";
+	const string costMatrixFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/costM3x3.txt";
+	const string originCountsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/origCounts.txt";
+	const string destinationCountsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/destCounts.txt";
+	const string modelOutput = "rebalancing_formulation_simple.lp";
+	const string solutionOutput = "rebalancing_solution_simple.sol";
 
 	// simmobility files
 	// ubuntu
-	const string stationsFile = "/home/kasia/Dropbox/matlab/2016-03-Demand_generation/facility_location/stations_ecbd34.txt";
-	const string costMatrixFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/RebTime34Stations.txt";
-	const string originCountsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/origCounts_rebEvery900_stations34.txt";
-	const string destinationCountsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/destCounts_rebEvery900_stations34.txt";
-	const string modelOutput = "output_rebalancing.lp";
-	const string solutionOutput = "solution_rebalancing.sol";
+//	const string stationsFile = "/home/kasia/Dropbox/matlab/2016-03-Demand_generation/facility_location/stations_ecbd34.txt";
+//	const string costMatrixFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/RebTime34Stations.txt";
+//	const string originCountsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/origCounts_rebEvery900_stations34.txt";
+//	const string destinationCountsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/destCounts_rebEvery900_stations34.txt";
+//	const string modelOutput = "output_rebalancing.lp";
+//	const string solutionOutput = "solution_rebalancing.sol";
 
 	// mac
 	//		stationsFile = "/Users/katarzyna/Dropbox/matlab/2016-03-Demand_generation/facility_location/stations_ecbd34.txt";
@@ -161,14 +161,14 @@ int main(int argc, char *argv[]) {
 
 		// number of empty vehicles traveling between stations
 		empty_veh = new GRBVar* [nRebPeriods];
-		// number of empty trips in not directly taken into account in the objective function
+		// number of empty trips is not directly taken into account in the objective function
 		for ( time_ = 0; time_ < nRebPeriods; ++time_) {
 			if (integer_solution) {
-			empty_veh[time_] = model.addVars(nStSquare, GRB_INTEGER);
+				empty_veh[time_] = model.addVars(nStSquare, GRB_INTEGER);
 			} else {
-			empty_veh[time_] = model.addVars(nStSquare);
+				empty_veh[time_] = model.addVars(nStSquare);
 			}
-				model.update();
+			model.update();
 
 			for(int depSt = 0; depSt < nStations; ++depSt){
 				// std::cout << "departure station: " << depSt << std::endl;
@@ -196,11 +196,11 @@ int main(int argc, char *argv[]) {
 
 		// number of vehicles in transfer at each time slot
 		if (integer_solution) {
-		in_transit = model.addVars(nRebPeriods, GRB_INTEGER);
+			in_transit = model.addVars(nRebPeriods, GRB_INTEGER);
 		} else {
-		in_transit = model.addVars(nRebPeriods);
+			in_transit = model.addVars(nRebPeriods);
 		}
-			model.update();
+		model.update();
 		for (time_ = 0; time_ < nRebPeriods; ++time_)
 		{
 			ostringstream vname;
@@ -262,12 +262,12 @@ int main(int argc, char *argv[]) {
 				ostringstream cname;
 				cname << "available_veh" << time_ << "." << depSt;
 				if (time_ != 0) {
-					model.addConstr(vhs_st_i[time_][depSt] ==
+					model.addConstr(vhs_st_i[time_][depSt] >=
 							vhs_st_i[time_ - 1][depSt] + reb_arr - reb_dep + dem_curr[depSt], cname.str());
 				} else {
 					// if we are in the first interval then we compare against the last interval of the previous day
 					// in that case I am comparing against the last interval of the same day
-					model.addConstr(vhs_st_i[time_][depSt] ==
+					model.addConstr(vhs_st_i[time_][depSt] >=
 							vhs_st_i[nRebPeriods - 1][depSt] + reb_arr - reb_dep + dem_curr[depSt], cname.str());
 				}
 				std::cout << "Constraint 1: " << time_  << "." << depSt << std::endl;
@@ -321,25 +321,20 @@ int main(int argc, char *argv[]) {
 			ostringstream cname;
 			cname << "veh_in_transit" << time_;
 			if (time_ != 0) {
-				model.addConstr(in_transit[time_] ==
+				model.addConstr(in_transit[time_] >=
 						in_transit[time_ - 1] + (reb_dep - reb_arr) + total_dem, cname.str());
 			} else {
 				// if we are in the first interval then we compare against the last interval of the previous day
 				// in my case I am comparing against the last interval of the same day
-				model.addConstr(in_transit[time_] ==
+				model.addConstr(in_transit[time_] >=
 						in_transit[nRebPeriods - 1] + (reb_dep - reb_arr) + total_dem, cname.str());
 			}
-			std::cout << "Constraint 4: " << time_  << " in_transit = " << in_transit << std::endl;
+			std::cout << "Constraint 2: " << time_  << " in_transit = " << in_transit << std::endl;
 			reb_arr.clear();
 			reb_dep.clear();
 		}
 
 		std::cout << "Constraint set 2 added." << std::endl;
-
-		/***********************************************************************************
-		 * Constraint 3: Number of vehicles in simulation remains constant
-		 ***********************************************************************************/
-		// missing constraint
 
 		/***********************************************************************************
 		 * Solve the problem and print solution to the console and to the file
@@ -350,7 +345,7 @@ int main(int argc, char *argv[]) {
 		int total_demand = 0;
 		int dem_curr[nStations];
 		for (int i = 0; i < nStations; ++i) {
-			// current demand = arriving vehicles - departing vehicles
+			// current demand = arriving vehicles - departing vehicles at time t
 			dem_curr[i] = dest_counts[0][i] + origin_counts[0][i];
 			total_demand += dem_curr[i];
 		}
