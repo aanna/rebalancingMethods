@@ -323,7 +323,6 @@ int main(int argc, char *argv[]) {
 		}
 		std::cout << "Constraint set 2 added." << std::endl;
 
-
 		/***********************************************************************************
 		 * Solve the problem and print solution to the console and to the file
 		 ***********************************************************************************/
