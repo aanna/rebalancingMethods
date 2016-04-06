@@ -99,7 +99,7 @@ int main(int argc, char *argv[]) {
 	readFiles(destinationCountsFile, dest_counts);
 
 	//round cost of traveling between stations to be a multiple of the rebalancing period
-	int reb_period = 900; // in minutes, output from costOfRebalancing.m is in secs
+	int reb_period = 1; // in minutes, output from costOfRebalancing.m is in secs
 	int rounded_cost[cost.size()][cost.size()];
 	for (int i = 0; i < cost.size(); i++){
 		for (int j = 0; j < cost[0].size(); j++){
@@ -156,7 +156,7 @@ int main(int argc, char *argv[]) {
 			model.update();
 			for (station = 0; station < nStations; ++station) {
 				ostringstream cname;
-				cname << "v_tii," << time_ << "," << station << "," << station << ",";
+				cname << "v_ti," << time_ << "," << station << ",x";
 				if (time_ == 0) {
 					vi[time_][station].set(GRB_DoubleAttr_Obj, cost_of_veh);
 					vi[time_][station].set(GRB_StringAttr_VarName, cname.str());
@@ -166,6 +166,7 @@ int main(int argc, char *argv[]) {
 				}
 			}
 		}
+		model.update();
 
 		// number of empty vehicles traveling between stations
 		rij = new GRBVar* [nRebPeriods];
@@ -184,7 +185,7 @@ int main(int argc, char *argv[]) {
 
 					int idx = stationMatrix[depSt][arrSt];
 					ostringstream vname;
-					vname << "r_tij," << time_ << "," << depSt << ","<< arrSt << ",";
+					vname << "r_tij," << time_ << "," << depSt << ","<< arrSt;
 					//std::cout << "nEmptyVhsTime." << time_ << "." << depSt << "."<< arrSt << "."<< idx << std::endl;
 
 					if (depSt != arrSt) {
@@ -196,12 +197,13 @@ int main(int argc, char *argv[]) {
 						rij[time_][idx].set(GRB_StringAttr_VarName, vname.str());
 					} else { // origin == destination
 						// this variable should not exist because we do not send vehicles within the same station
-						//						rij[time_][idx].set(GRB_DoubleAttr_Obj, 0);
-						//						rij[time_][idx].set(GRB_StringAttr_VarName, vname.str());
+						rij[time_][idx].set(GRB_DoubleAttr_Obj, 0);
+						rij[time_][idx].set(GRB_StringAttr_VarName, vname.str());
 					}
 				}
 			}
 		}
+		model.update();
 
 		/***********************************************************************************
 		 * Objective function
@@ -241,7 +243,6 @@ int main(int argc, char *argv[]) {
 						// std::cout << "rounded_cost = " << (int)rounded_cost[depSt][arrSt]/reb_period -1 << std::endl;
 						int travel_cost = (int) (rounded_cost[depSt][arrSt]/reb_period);
 						if (travel_cost > time_) {
-							//we have to add the vehicle in the counts for the previous day
 							int dep_time = nRebPeriods + time_ - travel_cost;
 							reb_arr += rij[dep_time][idx2];
 						} else {
@@ -298,7 +299,6 @@ int main(int argc, char *argv[]) {
 						// std::cout << "rounded_cost = " << (int)rounded_cost[depSt][arrSt]/reb_period -1 << std::endl;
 						int travel_cost = (int) (rounded_cost[depSt][arrSt]/reb_period);
 						if (travel_cost > time_) {
-							//we have to add the vehicle in the counts for the previous day
 							int dep_time = nRebPeriods + time_ - travel_cost;
 							reb_arr += rij[dep_time][idx2];
 						} else {
@@ -315,14 +315,81 @@ int main(int argc, char *argv[]) {
 					// if we are in the first interval then we compare against the last interval of the previous day
 					model.addConstr(vi[nRebPeriods - 1][depSt] + reb_arr - reb_dep >= booking_requests[depSt], cname.str());
 				}
-				model.update();
 				std::cout << "Constraint 2 demand: " << time_  << "." << depSt << std::endl;
 				reb_arr.clear();
 				reb_dep.clear();
 			}
 		}
+		model.update();
 		std::cout << "Constraint set 2 added." << std::endl;
 
+		/***********************************************************************************
+		 * Constraint 3: Constant number of vehicles over time
+		 ***********************************************************************************/
+		// This constraint is set to ensure that the total number of vehicles in the system does not change
+		// over time
+		int demandTravelling[nStations];
+		for (int i = 0; i < nStations; ++i) {
+			// booking_requests = departing_vehicles + arriving_vehicles
+			demandTravelling[i] = origin_counts[time_][i] + dest_counts[time_][i];
+		}
+
+		GRBLinExpr veh_total_prev = 0; //< Gurobi Linear Expression, total number of available vehicles at previous time step
+		GRBLinExpr veh_total = 0; //< Gurobi Linear Expression, total number of available vehicles now
+		GRBLinExpr veh_total_first = 0; // first interval which will be compared against the last one
+
+		for ( time_ = 0; time_ < nRebPeriods; ++time_) {
+			std::cout << "time_ = " << time_ << std::endl;
+
+			for(int depSt = 0; depSt < nStations; ++depSt) {
+				veh_total += vi[time_][depSt];
+
+				for(int arrSt = 0; arrSt < nStations; ++arrSt) {
+
+					if (depSt != arrSt) {
+						int idx = stationMatrix[depSt][arrSt];
+						int idx2 = stationMatrix[arrSt][depSt];
+						veh_total +=rij[time_][idx];
+						int travel_cost = (int) (rounded_cost[depSt][arrSt]/reb_period);
+
+						if (time_ == 0) {
+							// check for the travel cost and save it as a previous veh_total
+							// we are at zero so veh_total is at zero and will be compared only later
+							veh_total_prev = veh_total;
+							veh_total_first = veh_total;
+							veh_total.clear();
+							int dep_time = 0;
+							if (travel_cost > time_) {
+								dep_time = nRebPeriods + time_ - travel_cost;
+							} else {
+								dep_time = time_ - travel_cost;
+							}
+							veh_total_prev += rij[dep_time][idx2];
+							veh_total_first += rij[dep_time][idx2];
+
+							// add constraint
+
+						} else if (time_ == nRebPeriods - 1) {
+							// last rebalancing period,
+							// number of vehicles should be compared against the first time interval
+
+						} else {
+							// only check for the travel cost
+							if (travel_cost > time_) {
+								int dep_time = nRebPeriods + time_ - travel_cost;
+								veh_total += rij[dep_time][idx2];
+							} else {
+								int dep_time = time_ - travel_cost;
+								veh_total += rij[dep_time][idx2];
+							}
+						}
+					}
+				}
+			}
+
+
+		}
+		std::cout << "Constraint set 3 added." << std::endl;
 		/***********************************************************************************
 		 * Solve the problem and print solution to the console and to the file
 		 ***********************************************************************************/
