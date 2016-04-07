@@ -68,7 +68,7 @@ int main(int argc, char *argv[])
 		}
 
 		// The objective is to maximize the total demand covered
-		model.set(GRB_IntAttr_ModelSense, 0);
+		model.set(GRB_IntAttr_ModelSense, -1);
 
 		// Update model
 		model.update();
