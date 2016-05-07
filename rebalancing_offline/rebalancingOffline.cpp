@@ -223,9 +223,9 @@ int main(int argc, char *argv[]) {
 		/***********************************************************************************
 		 * Constraint 1: Flow conservation at station i
 		 ***********************************************************************************/
-		//		// This constraint is set to ensure that the number of vehicles available at station i at time t
-		//		// is equal to the number of vehicles available at this station in previous time interval
-		//		// plus whatever has arrived minus whatever has departed
+		// This constraint is set to ensure that the number of vehicles available at station i at time t
+		// is equal to the number of vehicles available at this station in previous time interval
+		// plus whatever has arrived minus whatever has departed
 		//		for ( time_ = 0; time_ < nRebPeriods; ++time_) {
 		//			// Current demand
 		//			int dem_curr[nStations];
@@ -315,12 +315,8 @@ int main(int argc, char *argv[]) {
 				}
 				ostringstream cname;
 				cname << "demand_ti" << time_ << "." << depSt;
-				if (time_ != 0) {
-					model.addConstr(vi[time_ - 1][depSt] + reb_arr - reb_dep >= booking_requests[depSt], cname.str());
-				} else {
-					// if we are in the first interval then we compare against the last interval of the previous day
-					model.addConstr(vi[nRebPeriods - 1][depSt] + reb_arr - reb_dep >= booking_requests[depSt], cname.str());
-				}
+				model.addConstr(vi[time_][depSt] + reb_arr - reb_dep >= booking_requests[depSt], cname.str());
+
 				std::cout << "Constraint 2 demand: " << time_  << "." << depSt << std::endl;
 				reb_arr.clear();
 				reb_dep.clear();
@@ -334,6 +330,8 @@ int main(int argc, char *argv[]) {
 		 ***********************************************************************************/
 		// This constraint is set to ensure that the total number of vehicles in the system does not change
 		// over time
+		// the total number of vehicles in the system is equal to the sum of the vehicles owned by each station
+		// vehicles owned by station i: available_veh + all_arriving - all_departing
 		int demandTravelling[nStations];
 		for ( time_ = 0; time_ < nRebPeriods; ++time_) {
 
@@ -344,80 +342,42 @@ int main(int argc, char *argv[]) {
 			}
 		}
 
-		GRBLinExpr veh_total_prev = 0; //< Gurobi Linear Expression, total number of available vehicles at previous time step
-		GRBLinExpr veh_total = 0; //< Gurobi Linear Expression, total number of available vehicles now
-		GRBLinExpr veh_total_first = 0; // first interval which will be compared against the last one
-
+		GRBLinExpr veh_total_i = 0; // Gurobi Linear Expression, total number of available vehicles now
+		GRBLinExpr veh_total_i_next = 0; // Gurobi Linear Expression, total number of available vehicles now
 
 		for ( time_ = 0; time_ < nRebPeriods; ++time_) {
 			std::cout << "time_ = " << time_ << std::endl;
 
+			// at the current time
 			for(int depSt = 0; depSt < nStations; ++depSt) {
-				veh_total += vi[time_][depSt];
-
+				veh_total_i += vi[time_][depSt];
 				for(int arrSt = 0; arrSt < nStations; ++arrSt) {
-
 					if (depSt != arrSt) {
-						int idx = stationMatrix[depSt][arrSt];
-						int idx2 = stationMatrix[arrSt][depSt];
-						veh_total +=rij[time_][idx];
+						// vehicles leaving the station
+						int idx_dep = stationMatrix[depSt][arrSt];
+						// vehicles arriving in the station
+						int idx_arr = stationMatrix[arrSt][depSt];
+						veh_total_i -= rij[time_][idx_dep];
+
+						// get the travel time and the departure time for trips arriving now to the station i
 						int travel_cost = (int) (rounded_cost[depSt][arrSt]/reb_period);
-
-						if (time_ == 0) {
-							// check for the travel cost and save it as a previous veh_first and prev
-							// we are at zero so veh_total is at zero and will be compared only later
-							veh_total_prev = veh_total;
-							veh_total_first = veh_total;
-							int dep_time = 0;
-							if (travel_cost > time_) {
-								dep_time = nRebPeriods + time_ - travel_cost;
-							} else {
-								dep_time = time_ - travel_cost;
-							}
-							veh_total_prev += rij[dep_time][idx2];
-							veh_total_first += rij[dep_time][idx2];
-
-						} else if (time_ == nRebPeriods - 1) {
-							// last rebalancing period,
-
-							if (travel_cost > time_) {
-								int dep_time = nRebPeriods + time_ - travel_cost;
-								veh_total += rij[dep_time][idx2];
-							} else {
-								int dep_time = time_ - travel_cost;
-								veh_total += rij[dep_time][idx2];
-							}
+						if (travel_cost > time_) {
+							int dep_time = nRebPeriods + time_ - travel_cost;
+							veh_total_i += rij[dep_time][idx_arr];
 						} else {
-							// interval is neither the first nor the last one
-							if (travel_cost > time_) {
-								int dep_time = nRebPeriods + time_ - travel_cost;
-								veh_total += rij[dep_time][idx2];
-							} else {
-								int dep_time = time_ - travel_cost;
-								veh_total += rij[dep_time][idx2];
-							}
+							int dep_time = time_ - travel_cost;
+							veh_total_i += rij[dep_time][idx_arr];
 						}
+
+
+
+
+						// at the next time
+
+
 					}
 				}
 			}
-
-			if (time_ == 0) {
-				// number of vehicles should be compared against the first time interval
-				// add last constraint
-				ostringstream cname;
-				cname << "N_vehicles" << time_;
-				model.addConstr(veh_total + demandTravelling[time_] == veh_total_first + demandTravelling[0], cname.str());
-			} else {
-
-				// add constraint
-				ostringstream cname;
-				cname << "N_vehicles" << time_;
-				model.addConstr(veh_total + demandTravelling[time_] == veh_total_prev + demandTravelling[time_ -1], cname.str());
-			}
-
-			veh_total_prev.clear();
-			veh_total_prev = veh_total;
-			veh_total.clear();
 		}
 		std::cout << "Constraint set 3 added." << std::endl;
 		/***********************************************************************************
