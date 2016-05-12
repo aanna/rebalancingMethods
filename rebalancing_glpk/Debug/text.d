@@ -1,1 +1,0 @@
-text.d: ../text.cpp
