@@ -76,10 +76,10 @@ int main(int argc, char *argv[]) {
 	// simple_model
 	bool simple_model = true;
 	const string stationsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/stationsXY.txt";
-	const string costMatrixFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/costM3x3.txt";
-	const string originCountsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/origCounts.txt";
-	const string destinationCountsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/destCounts.txt";
-	const string inTransitCountsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/inTransit.txt";
+	const string costMatrixFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/costM2x2.txt";
+	const string originCountsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/origCounts2x2.txt";
+	const string destinationCountsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/destCounts2x2.txt";
+	const string inTransitCountsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/inTransit2x2.txt";
 	const string modelOutput = "rebalancing_formulation_simple.lp";
 	const string solutionOutput = "rebalancing_solution_simple.sol";
 
@@ -401,6 +401,62 @@ int main(int argc, char *argv[]) {
 
 		} // end constraints loop: for ( time_ = 0; time_ < nRebPeriods; ++time_)
 		std::cout << "Constraint set 2 added." << std::endl;
+
+		/***********************************************************************************
+		 * Constraint 3: Flow conservation at station i
+		 ***********************************************************************************/
+//		// This constraint is set to ensure that the number of vehicles available at station i at time t
+//		// is equal to the number of vehicles available at this station in previous time interval
+//		// plus whatever has arrived minus whatever has departed
+//		for ( time_ = 0; time_ < nRebPeriods; ++time_) {
+//			// Current demand
+//			int dem_curr[nStations];
+//			for (int i = 0; i < nStations; ++i) {
+//				// current demand = arriving_vehicles - departing_vehicles
+//				dem_curr[i] = dest_counts[time_][i] - origin_counts[time_][i];
+//				// std::cout << origin_counts[time_][i] << " - " << dest_counts[time_][i] << " = " << dem_curr[i] << std::endl;
+//			}
+//
+//			GRBLinExpr reb_dep = 0;
+//			GRBLinExpr reb_arr = 0;
+//
+//			for(int depSt = 0; depSt < nStations; ++depSt){
+//				// std::cout << "departure station: " << depSt << std::endl;
+//				for (int arrSt = 0; arrSt < nStations; ++arrSt) {
+//
+//					if (depSt != arrSt) {
+//						int idx = stationMatrix[depSt][arrSt];
+//						int idx2 = stationMatrix[arrSt][depSt];
+//						reb_dep += rij[time_][idx];
+//						// std::cout << "rounded_cost = " << (int)rounded_cost[depSt][arrSt]/reb_period -1 << std::endl;
+//						int travel_cost = (int) (rounded_cost[depSt][arrSt]/reb_period);
+//						if (travel_cost > time_) {
+//							int dep_time = nRebPeriods + time_ - travel_cost;
+//							reb_arr += rij[dep_time][idx2];
+//						} else {
+//							int dep_time = time_ - travel_cost;
+//							reb_arr += rij[dep_time][idx2];
+//						}
+//					}
+//				}
+//				ostringstream cname;
+//				cname << "flow_ti" << time_ << "." << depSt;
+//				if (time_ != nRebPeriods - 1) {
+//					model.addConstr(vi[time_ + 1][depSt] ==
+//							vi[time_][depSt] + reb_arr - reb_dep + dem_curr[depSt], cname.str());
+//				} else {
+//					// if we are in the last interval then we compare against the first interval of the next day
+//					// here: vi(t=0) == vi(t=Tp)
+//					model.addConstr(vi[0][depSt] ==
+//							vi[time_][depSt] + reb_arr - reb_dep + dem_curr[depSt], cname.str());
+//				}
+//				//std::cout << "Constraint 1 vi @: " << time_  << "." << depSt << std::endl;
+//				reb_arr.clear();
+//				reb_dep.clear();
+//			}
+//		}
+//		model.update();
+//		std::cout << "Constraint set 3 added." << std::endl;
 		/***********************************************************************************
 		 * Solve the problem and print solution to the console and to the file
 		 ***********************************************************************************/
@@ -410,12 +466,12 @@ int main(int argc, char *argv[]) {
 		int total_demand = 0;
 		int dem_curr[nStations];
 		for (int i = 0; i < nStations; ++i) {
-			// current demand = arriving vehicles - departing vehicles at time t
-			dem_curr[i] = dest_counts[0][i] + origin_counts[0][i];
+			// current demand = arriving vehicles - in_transit at time t
+			dem_curr[i] = dest_counts[0][i] + in_transit_counts[0][i];
 			total_demand += dem_curr[i];
 		}
 
-		double numOfVeh = model.get(GRB_DoubleAttr_ObjVal) + total_demand;
+		double numOfVeh = model.get(GRB_DoubleAttr_ObjVal) + total_demand; //plus rebalancing counts
 
 		cout << "\nTOTAL NUMBER OF VEHICLES: " << numOfVeh << std::endl;
 		cout << "\nTOTAL NUMBER OF AVAILABLE VEH AT TIME 0: " << model.get(GRB_DoubleAttr_ObjVal) << std::endl;
