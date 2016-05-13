@@ -311,10 +311,10 @@ int main(int argc, char *argv[]) {
 				// for station depSt:
 
 				if(time_ == 0) {
-					// variables at the first time interval veh_total_i_first
+					// variables at the last time interval veh_total_i_last
 					// veh_total_at_depSt = idling_vehicles
-					veh_total_i_first += vi[time_][depSt];
-					veh_total_i_previous += vi[time_][depSt];
+					// previous time step is the last interval
+					veh_total_i_previous += vi[nRebPeriods - 1][depSt];
 					for(int arrSt = 0; arrSt < nStations; ++arrSt) {
 						if (depSt != arrSt) {
 							//std::cout << "time_ = " << time_ << ", depSt = " << depSt << ", arrSt = " << arrSt <<  std::endl;
@@ -323,26 +323,16 @@ int main(int argc, char *argv[]) {
 							//std::cout << "idx_arr = " << idx_arr << std::endl;
 							// get the travel time and the departure time for trips arriving now to the station i
 							int travel_cost = (int) (rounded_cost[depSt][arrSt]/reb_period);
-							//std::cout << "travel_cost = " << travel_cost << std::endl;
-							if (travel_cost > time_) {
-								int dep_time = nRebPeriods + time_ - travel_cost;
-								//std::cout << "dep_time = " << dep_time << std::endl;
-								// veh_total_at_depSt = idling_vehicles + reb_arriving
-								veh_total_i_first += rij[dep_time][idx_arr];
-								veh_total_i_previous += rij[dep_time][idx_arr];
-								std::cout << "veh_total_i_first.size() = " << veh_total_i_first.size() << std::endl;
-
-							} else {
-								int dep_time = time_ - travel_cost;
-								//std::cout << "dep_time = " << dep_time << std::endl;
-								// veh_total_at_depSt = idling_vehicles + reb_arriving
-								veh_total_i_first += rij[dep_time][idx_arr];
-								veh_total_i_previous += rij[dep_time][idx_arr];
-								std::cout << "veh_total_i_first.size() = " << veh_total_i_first.size() << std::endl;
-							}
+							int dep_time = nRebPeriods - travel_cost;
+							// veh_total_at_depSt = idling_vehicles + reb_arriving
+							veh_total_i_previous += rij[dep_time][idx_arr];
+							std::cout << "veh_total_i_last.size() = " << veh_total_i_previous.size() << std::endl;
 						}
 					}
 				}
+			}
+
+			for (int depSt = 0; depSt < nStations; ++depSt) {
 				// add variables for all intervals
 				// veh_total_at_depSt = idling_vehicles
 				veh_total_i += vi[time_][depSt];
@@ -358,7 +348,7 @@ int main(int argc, char *argv[]) {
 
 						// current time step time_
 						if (travel_cost > time_) {
-							int dep_time = nRebPeriods + time_ - travel_cost;
+							int dep_time = nRebPeriods - 1 + time_ - travel_cost;
 							// veh_total_at_depSt = idling_vehicles - rebalancing_departing + reb_arriving
 							veh_total_i += rij[dep_time][idx_arr];
 							std::cout << "veh_total_i.size() = " << veh_total_i.size() << std::endl;
@@ -370,37 +360,38 @@ int main(int argc, char *argv[]) {
 						}
 					}
 				}
-
 			}
 
 			// add constraints
-			// at each time interval except for 0, add one constraint
-			if (time_ < nRebPeriods - 1) {
+			if (time_ == 0) {
+				// we skip time_= zero; and for all other intervals except the last one
+				ostringstream cname;
+				cname << "supply_t" << time_ ;
+
+				// total number of vehicles at time t == total number of vehicles at time (t-1)
+				model.addConstr(veh_total_i + total_vhs_at_t[time_] == veh_total_i_previous + total_vhs_at_t[nRebPeriods - 1], cname.str());
+				model.update();
+
+				std::cout << "Constraint 2 supply at time : " << time_  <<  std::endl;
+				veh_total_i_previous.clear();
+				veh_total_i_previous = veh_total_i;
+				veh_total_i.clear();
+			} else {
+				// add constraints
 				// we skip time_= zero; and for all other intervals except the last one
 				ostringstream cname;
 				cname << "supply_t" << time_ ;
 
 				// total number of vehicles at time t == total number of vehicles at time (t-1)
 				model.addConstr(veh_total_i + total_vhs_at_t[time_] == veh_total_i_previous + total_vhs_at_t[time_ - 1], cname.str());
+				model.update();
 
 				std::cout << "Constraint 2 supply at time : " << time_  <<  std::endl;
 				veh_total_i_previous.clear();
 				veh_total_i_previous = veh_total_i;
 				veh_total_i.clear();
-			} else if (time_ == nRebPeriods - 1) {
-				// last compared against the first
-				ostringstream cname;
-				cname << "supply_t" << time_ ;
-
-				// total number of vehicles at time t == total number of vehicles at time (t-1)
-				model.addConstr(veh_total_i + total_vhs_at_t[time_] == veh_total_i_first + total_vhs_at_t[0], cname.str());
-
-				std::cout << "Constraint 2 supply at time : " << time_  <<  std::endl;
-				veh_total_i.clear();
-				veh_total_i_previous.clear();
-				veh_total_i_first.clear();
 			}
-			// end if (time_ > 0)
+
 		} // end constraints loop: for ( time_ = 0; time_ < nRebPeriods; ++time_)
 		std::cout << "Constraint set 2 added." << std::endl;
 		/***********************************************************************************
