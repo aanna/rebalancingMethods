@@ -320,13 +320,20 @@ int main(int argc, char *argv[]) {
 							//std::cout << "time_ = " << time_ << ", depSt = " << depSt << ", arrSt = " << arrSt <<  std::endl;
 							// vehicles arriving in the station
 							int idx_arr = stationMatrix[arrSt][depSt];
-							//std::cout << "idx_arr = " << idx_arr << std::endl;
 							// get the travel time and the departure time for trips arriving now to the station i
 							int travel_cost = (int) (rounded_cost[depSt][arrSt]/reb_period);
-							int dep_time = nRebPeriods - travel_cost;
-							// veh_total_at_depSt = idling_vehicles + reb_arriving
-							veh_total_i_previous += rij[dep_time][idx_arr];
-							std::cout << "veh_total_i_last.size() = " << veh_total_i_previous.size() << std::endl;
+
+							// is should never happen that (nRebPeriods - 1 - travel_cost < 0), but for the sake of correctness
+							if (nRebPeriods - 1 - travel_cost >= 0) {
+								int dep_time = nRebPeriods - 1 - travel_cost;
+								// veh_total_at_depSt = idling_vehicles + reb_arriving
+								veh_total_i_previous += rij[dep_time][idx_arr];
+								std::cout << "veh_total_i_last.size() = " << veh_total_i_previous.size() << std::endl;
+							} else {
+								// (nRebPeriods - 1 - travel_cost < 0)
+								// do some reminder stuff
+								std::cout << "ERROR: (nRebPeriods - 1 - travel_cost < 0)" << std::endl;
+							}
 						}
 					}
 				}
@@ -348,7 +355,7 @@ int main(int argc, char *argv[]) {
 
 						// current time step time_
 						if (travel_cost > time_) {
-							int dep_time = nRebPeriods - 1 + time_ - travel_cost;
+							int dep_time = nRebPeriods + time_ - travel_cost;
 							// veh_total_at_depSt = idling_vehicles - rebalancing_departing + reb_arriving
 							veh_total_i += rij[dep_time][idx_arr];
 							std::cout << "veh_total_i.size() = " << veh_total_i.size() << std::endl;
