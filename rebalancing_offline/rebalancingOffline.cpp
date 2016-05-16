@@ -70,29 +70,29 @@ int main(int argc, char *argv[]) {
 	// when objective minimizes number of rebalancing vehicles then set cost to a huge number
 	// (to make sure that this is always more expensive that rebalancing as it adds more vehicles to the system)
 	double cost_of_veh = 1;
-	double rebalancing_cost = 0;
+	double rebalancing_cost = 1;
 
 	// input and output files declaration
 	// simple_model
 	bool simple_model = true;
 	const string stationsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/stationsXY.txt";
-	const string costMatrixFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/costM2x2.txt";
-	const string originCountsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/origCounts2x2.txt";
-	const string destinationCountsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/destCounts2x2.txt";
-	const string inTransitCountsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/inTransit2x2.txt";
+	const string costMatrixFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/costM3x3.txt";
+	const string originCountsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/origCounts3x3.txt";
+	const string destinationCountsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/destCounts3x3.txt";
+	const string inTransitCountsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/inTransit3x3.txt";
 	const string modelOutput = "rebalancing_formulation_simple.lp";
 	const string solutionOutput = "rebalancing_solution_simple.sol";
 
 	// simmobility files
-	//	// ubuntu
-	/// 	bool simple_model = false;
-	//		const string stationsFile = "/home/kasia/Dropbox/matlab/2016-03-Demand_generation/facility_location/stations_ecbd34.txt";
-	//		const string costMatrixFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/RebTime34Stations.txt";
-	//		const string originCountsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/origCounts_rebEvery900_stations34.txt";
-	//		const string destinationCountsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/destCounts_rebEvery900_stations34.txt";
-	//		const string inTransitCountsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/.txt";
-	//		const string modelOutput = "output_rebalancing.lp";
-	//		const string solutionOutput = "solution_rebalancing.sol";
+		// ubuntu
+//	 	bool simple_model = false;
+//			const string stationsFile = "/home/kasia/Dropbox/matlab/2016-03-Demand_generation/facility_location/stations_ecbd34.txt";
+//			const string costMatrixFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/RebTime34Stations.txt";
+//			const string originCountsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/origCounts_rebEvery900_stations34.txt";
+//			const string destinationCountsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/destCounts_rebEvery900_stations34.txt";
+//			const string inTransitCountsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/inTransit900_stations34.txt";
+//			const string modelOutput = "output_rebalancing.lp";
+//			const string solutionOutput = "solution_rebalancing.sol";
 
 	// mac
 	//		stationsFile = "/Users/katarzyna/Dropbox/matlab/2016-03-Demand_generation/facility_location/stations_ecbd34.txt";
@@ -168,11 +168,13 @@ int main(int argc, char *argv[]) {
 			model.update();
 			for (station = 0; station < nStations; ++station) {
 				ostringstream cname;
-				cname << "v_ti," << time_ << "," << station << ",x";
+				cname << "v_ti," << time_ << "," << station << ",0";
 				if (time_ == 0) {
-					vi[time_][station].set(GRB_DoubleAttr_Obj, cost_of_veh);
+					// add in the objective
+					vi[time_][station].set(GRB_DoubleAttr_Obj, 0.0);
 					vi[time_][station].set(GRB_StringAttr_VarName, cname.str());
 				} else {
+					// not minimized in the objective
 					vi[time_][station].set(GRB_DoubleAttr_Obj, 0.0);
 					vi[time_][station].set(GRB_StringAttr_VarName, cname.str());
 				}
@@ -205,11 +207,18 @@ int main(int argc, char *argv[]) {
 						// in the current implementation the rebalancing cost is equal to zero
 						// rebalancing_cost = cost[divresult.quot][divresult.rem];
 						// or rebalancing_cost = cost[depSt][arrSt];
-						rij[time_][idx].set(GRB_DoubleAttr_Obj, rebalancing_cost);
-						rij[time_][idx].set(GRB_StringAttr_VarName, vname.str());
+						if (time_ == 0) {
+							// add in the objective
+							rij[time_][idx].set(GRB_DoubleAttr_Obj, rebalancing_cost); // rebalancing_cost
+							rij[time_][idx].set(GRB_StringAttr_VarName, vname.str());
+						} else {
+							// we do not count it in the objective
+							rij[time_][idx].set(GRB_DoubleAttr_Obj, rebalancing_cost); // rebalancing_cost
+							rij[time_][idx].set(GRB_StringAttr_VarName, vname.str());
+						}
 					} else { // origin == destination
 						// this variable should not exist because we do not send vehicles within the same station
-						rij[time_][idx].set(GRB_DoubleAttr_Obj, 0);
+						rij[time_][idx].set(GRB_DoubleAttr_Obj, 0.0);
 						rij[time_][idx].set(GRB_StringAttr_VarName, vname.str());
 					}
 				}
@@ -405,58 +414,58 @@ int main(int argc, char *argv[]) {
 		/***********************************************************************************
 		 * Constraint 3: Flow conservation at station i
 		 ***********************************************************************************/
-//		// This constraint is set to ensure that the number of vehicles available at station i at time t
-//		// is equal to the number of vehicles available at this station in previous time interval
-//		// plus whatever has arrived minus whatever has departed
-//		for ( time_ = 0; time_ < nRebPeriods; ++time_) {
-//			// Current demand
-//			int dem_curr[nStations];
-//			for (int i = 0; i < nStations; ++i) {
-//				// current demand = arriving_vehicles - departing_vehicles
-//				dem_curr[i] = dest_counts[time_][i] - origin_counts[time_][i];
-//				// std::cout << origin_counts[time_][i] << " - " << dest_counts[time_][i] << " = " << dem_curr[i] << std::endl;
-//			}
-//
-//			GRBLinExpr reb_dep = 0;
-//			GRBLinExpr reb_arr = 0;
-//
-//			for(int depSt = 0; depSt < nStations; ++depSt){
-//				// std::cout << "departure station: " << depSt << std::endl;
-//				for (int arrSt = 0; arrSt < nStations; ++arrSt) {
-//
-//					if (depSt != arrSt) {
-//						int idx = stationMatrix[depSt][arrSt];
-//						int idx2 = stationMatrix[arrSt][depSt];
-//						reb_dep += rij[time_][idx];
-//						// std::cout << "rounded_cost = " << (int)rounded_cost[depSt][arrSt]/reb_period -1 << std::endl;
-//						int travel_cost = (int) (rounded_cost[depSt][arrSt]/reb_period);
-//						if (travel_cost > time_) {
-//							int dep_time = nRebPeriods + time_ - travel_cost;
-//							reb_arr += rij[dep_time][idx2];
-//						} else {
-//							int dep_time = time_ - travel_cost;
-//							reb_arr += rij[dep_time][idx2];
-//						}
-//					}
-//				}
-//				ostringstream cname;
-//				cname << "flow_ti" << time_ << "." << depSt;
-//				if (time_ != nRebPeriods - 1) {
-//					model.addConstr(vi[time_ + 1][depSt] ==
-//							vi[time_][depSt] + reb_arr - reb_dep + dem_curr[depSt], cname.str());
-//				} else {
-//					// if we are in the last interval then we compare against the first interval of the next day
-//					// here: vi(t=0) == vi(t=Tp)
-//					model.addConstr(vi[0][depSt] ==
-//							vi[time_][depSt] + reb_arr - reb_dep + dem_curr[depSt], cname.str());
-//				}
-//				//std::cout << "Constraint 1 vi @: " << time_  << "." << depSt << std::endl;
-//				reb_arr.clear();
-//				reb_dep.clear();
-//			}
-//		}
-//		model.update();
-//		std::cout << "Constraint set 3 added." << std::endl;
+		// This constraint is set to ensure that the number of vehicles available at station i at time t
+		// is equal to the number of vehicles available at this station in previous time interval
+		// plus whatever has arrived minus whatever has departed
+		for ( time_ = 0; time_ < nRebPeriods; ++time_) {
+			// Current demand
+			int dem_curr[nStations];
+			for (int i = 0; i < nStations; ++i) {
+				// current demand = arriving_vehicles - departing_vehicles
+				dem_curr[i] = dest_counts[time_][i] - origin_counts[time_][i];
+				// std::cout << origin_counts[time_][i] << " - " << dest_counts[time_][i] << " = " << dem_curr[i] << std::endl;
+			}
+
+			GRBLinExpr reb_dep = 0;
+			GRBLinExpr reb_arr = 0;
+
+			for(int depSt = 0; depSt < nStations; ++depSt){
+				// std::cout << "departure station: " << depSt << std::endl;
+				for (int arrSt = 0; arrSt < nStations; ++arrSt) {
+
+					if (depSt != arrSt) {
+						int idx = stationMatrix[depSt][arrSt];
+						int idx2 = stationMatrix[arrSt][depSt];
+						reb_dep += rij[time_][idx];
+						// std::cout << "rounded_cost = " << (int)rounded_cost[depSt][arrSt]/reb_period -1 << std::endl;
+						int travel_cost = (int) (rounded_cost[depSt][arrSt]/reb_period);
+						if (travel_cost > time_) {
+							int dep_time = nRebPeriods + time_ - travel_cost;
+							reb_arr += rij[dep_time][idx2];
+						} else {
+							int dep_time = time_ - travel_cost;
+							reb_arr += rij[dep_time][idx2];
+						}
+					}
+				}
+				ostringstream cname;
+				cname << "flow_ti" << time_ << "." << depSt;
+				if (time_ != nRebPeriods - 1) {
+					model.addConstr(vi[time_ + 1][depSt] ==
+							vi[time_][depSt] + reb_arr - reb_dep + dem_curr[depSt], cname.str());
+				} else {
+					// if we are in the last interval then we compare against the first interval of the next day
+					// here: vi(t=0) == vi(t=Tp)
+					model.addConstr(vi[0][depSt] ==
+							vi[time_][depSt] + reb_arr - reb_dep + dem_curr[depSt], cname.str());
+				}
+				//std::cout << "Constraint 1 vi @: " << time_  << "." << depSt << std::endl;
+				reb_arr.clear();
+				reb_dep.clear();
+			}
+		}
+		model.update();
+		std::cout << "Constraint set 3 added." << std::endl;
 		/***********************************************************************************
 		 * Solve the problem and print solution to the console and to the file
 		 ***********************************************************************************/
