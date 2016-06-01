@@ -302,10 +302,6 @@ int main(int argc, char *argv[]) {
 		// the total number of vehicles in the system is equal to the sum of the vehicles owned by each station
 		// vehicles owned by station i: available_veh + cust_arriving + cust_in_transit_to_station + empty_arr + empty_in_transit
 
-		/* --------------------------------------------------------------
-		HAS TO BE CORRECTED !!
-		----------------------------------------------------------------*/
-
 		int cust_balance_at[nStations];
 		int cust_vhs_at_t[time_];
 		for ( time_ = 0; time_ < nRebPeriods; ++time_) {
@@ -326,13 +322,15 @@ int main(int argc, char *argv[]) {
 		GRBLinExpr idle_veh = 0; // Gurobi Linear Expression, total number of idle vehicles now
 		GRBLinExpr reb_arr = 0; // Gurobi Linear Expression, total number of rebalancing vehicles arriving and in transit to station i
 
-		GRBLinExpr idle_and_reb_first = 0; // Gurobi Linear Expression, total number of available vehicles in first time step
-		GRBLinExpr idle_and_reb_previous = 0; // Gurobi Linear Expression, total number of available vehicles in previous time
+		GRBLinExpr idle_veh_prev = 0; // Gurobi Linear Expression, total number of idle vehicles at previous interval
+		GRBLinExpr reb_arr_prev = 0; // Gurobi Linear Expression, total number of rebalancing vehicles arriving and in transit to station i at previous time
+
+		div_t divresult;
 
 		for ( time_ = 0; time_ < nRebPeriods; ++time_) {
 			std::cout << "time_ = " << time_ << std::endl;
 
-			// adding variables
+			// adding variables at current time t
 			for(int i = 0; i < nStations; ++i) {
 				// idle vehicles at station i at time t
 				idle_veh += vi[time_][i];
@@ -345,107 +343,65 @@ int main(int argc, char *argv[]) {
 						int travel_time = (int) (rounded_cost[j][i]/reb_period);
 						// index of vehicles arriving at i from j (departed from j to i travel_time ago)
 						int idx_arr = stationMatrix[j][i];
-						// start time of the trip which is arriving now
-						div_t divresult;
+						// divresult.rem is start time of the arriving trips
 						divresult = div (nRebPeriods + time_ - travel_time, nRebPeriods);
 						std::cout << "divresult.rem = " << divresult.rem << std::endl;
 						reb_arr += rij[divresult.rem][idx_arr];
 						// empty trips in transit (not arriving yet)
-
-
+						// if tt > 1 -> all trips started after divresult.rem and before time_
+						if (travel_time > 1) {
+							for (int k = 0; k < travel_time; ++k) {
+								divresult = div (nRebPeriods + time_ - travel_time + k, nRebPeriods);
+								reb_arr += rij[divresult.rem][idx_arr];
+							}
+						}
 					}
 				}
-
-
-
-
-//				if(time_ == 0) {
-//
-//					for(int arrSt = 0; arrSt < nStations; ++arrSt) {
-//						if (depSt != arrSt) {
-//							//std::cout << "time_ = " << time_ << ", depSt = " << depSt << ", arrSt = " << arrSt <<  std::endl;
-//							// vehicles arriving in the station
-//							int idx_arr = stationMatrix[arrSt][depSt];
-//							// get the travel time and the departure time for trips arriving now to the station i
-//							// cost is expressed in the number of reb periods, i.e., 1,2,3,...nRebPeriods
-//							int travel_cost = (int) (rounded_cost[depSt][arrSt]/reb_period);
-//
-//							// is should never happen that (nRebPeriods - 1 - travel_cost < 0), but for the sake of correctness
-//							if (nRebPeriods - 1 - travel_cost >= 0) {
-//								int dep_time = nRebPeriods - 1 - travel_cost;
-//								// veh_total_at_depSt = idling_vehicles + reb_arriving
-//								veh_total_i_previous += rij[dep_time][idx_arr];
-//								// std::cout << "veh_total_i_last.size() = " << veh_total_i_previous.size() << std::endl;
-//							} else {
-//								// (nRebPeriods - 1 - travel_cost < 0)
-//								// do some reminder stuff
-//								std::cout << "ERROR: (nRebPeriods - 1 - travel_cost < 0)" << std::endl;
-//							}
-//						}
-//					}
-//				}
-//			}
-//
-//			for (int depSt = 0; depSt < nStations; ++depSt) {
-//				// add variables for all intervals
-//				// veh_total_at_depSt = idling_vehicles
-//				veh_total_i += vi[time_][depSt];
-//				for(int arrSt = 0; arrSt < nStations; ++arrSt) {
-//					if (depSt != arrSt) {
-//						// vehicles arriving in the station
-//						int idx_arr = stationMatrix[arrSt][depSt];
-//						// veh_total_at_depSt = idling_vehicles - rebalancing_departing
-//						//veh_total_i -= rij[time_][idx_dep];
-//						//veh_total_i_previous -= rij[time_ - 1][idx_dep];
-//						// get the travel time and the departure time for trips arriving now to the station i
-//						// cost is expressed in the number of reb periods, i.e., 1,2,3,...nRebPeriods
-//						int travel_cost = (int) (rounded_cost[depSt][arrSt]/reb_period);
-//
-//						// current time step time_
-//						if (travel_cost > time_) {
-//							int dep_time = nRebPeriods + time_ - travel_cost;
-//							// veh_total_at_depSt = idling_vehicles - rebalancing_departing + reb_arriving
-//							veh_total_i += rij[dep_time][idx_arr];
-//							// std::cout << "veh_total_i.size() = " << veh_total_i.size() << std::endl;
-//						} else {
-//							int dep_time = time_ - travel_cost;
-//							// veh_total_at_depSt = idling_vehicles - rebalancing_departing + reb_arriving
-//							veh_total_i += rij[dep_time][idx_arr];
-//							// std::cout << "veh_total_i.size() = " << veh_total_i.size() << std::endl;
-//						}
-//					}
-//				}
-//			}
-//
-//			// add constraints
-//			if (time_ == 0) {
-//				// we skip time_= zero; and for all other intervals except the last one
-//				ostringstream cname;
-//				cname << "supply_t" << time_ ;
-//
-//				// total number of vehicles at time t == total number of vehicles at time (t-1)
-//				model.addConstr(veh_total_i + cust_vhs_at_t[time_] == veh_total_i_previous + cust_vhs_at_t[nRebPeriods - 1], cname.str());
-//				model.update();
-//
-//				//std::cout << "Constraint 2 supply at time : " << time_  <<  std::endl;
-//				veh_total_i_previous.clear();
-//				veh_total_i_previous = veh_total_i;
-//				veh_total_i.clear();
-//			} else {
-//				// add constraints
-//				// we skip time_= zero; and for all other intervals except the last one
-//				ostringstream cname;
-//				cname << "supply_t" << time_ ;
-//
-//				// total number of vehicles at time t == total number of vehicles at time (t-1)
-//				model.addConstr(veh_total_i + cust_vhs_at_t[time_] == veh_total_i_previous + cust_vhs_at_t[time_ - 1], cname.str());
-//				model.update();
-//
-//				//	std::cout << "Constraint 2 supply at time : " << time_  <<  std::endl;
-//				veh_total_i_previous.clear();
-//				veh_total_i_previous = veh_total_i;
-//				veh_total_i.clear();
 			}
+
+			// adding variables at time (t-1)
+			for(int i = 0; i < nStations; ++i) {
+				// idle vehicles at station i at time (t - 1)
+				divresult = div (nRebPeriods + time_ - 1, nRebPeriods);
+				idle_veh_prev += vi[divresult.rem][i];
+
+				for(int j = 0; j < nStations; ++j) {
+					if (i != j) {
+
+						// travel_time is expressed in the number of reb periods, i.e., 1,2,3,...nRebPeriods
+						// travel_time for trips arriving to i from j
+						int travel_time = (int) (rounded_cost[j][i]/reb_period);
+						// index of vehicles arriving at i from j (departed from j to i travel_time ago)
+						int idx_arr = stationMatrix[j][i];
+						// divresult.rem is start time of the arriving trips
+						divresult = div (nRebPeriods + time_ - 1 - travel_time, nRebPeriods);
+						std::cout << "divresult.rem = " << divresult.rem << std::endl;
+						reb_arr_prev += rij[divresult.rem][idx_arr];
+						// empty trips in transit (not arriving yet)
+						// if tt > 1 -> all trips started after divresult.rem and before time_
+						if (travel_time > 1) {
+							for (int k = 0; k < travel_time; ++k) {
+								divresult = div (nRebPeriods + time_ - 1 - travel_time + k, nRebPeriods);
+								reb_arr_prev += rij[divresult.rem][idx_arr];
+							}
+						}
+					}
+				}
+			}
+
+			// add constraints
+				ostringstream cname;
+				cname << "supply_t" << time_ ;
+
+				// total number of vehicles at time t == total number of vehicles at time (t-1)
+				divresult = div (nRebPeriods + time_ - 1, nRebPeriods);
+				model.addConstr(idle_veh + reb_arr + cust_vhs_at_t[time_] == idle_veh_prev + reb_arr_prev + cust_vhs_at_t[divresult.rem], cname.str());
+				model.update();
+
+				idle_veh.clear();
+				idle_veh_prev.clear();
+				reb_arr.clear();
+				reb_arr_prev.clear();
 
 		} // end constraints loop: for ( time_ = 0; time_ < nRebPeriods; ++time_)
 		std::cout << "Constraint set 2 added." << std::endl;
