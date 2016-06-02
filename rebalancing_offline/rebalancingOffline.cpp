@@ -50,7 +50,7 @@ int main(int argc, char *argv[]) {
 	// do we want to force integer solution?
 	// if false, we solve a linear program without the integrity constraint
 	bool integer_solution = false;
-	bool objective_min_N = false;
+	//bool objective_min_N = false;
 
 	GRBEnv* env = 0; //< gurobi env
 	GRBVar** rij = 0; // number of empty vehicles traveling between stations
@@ -345,13 +345,14 @@ int main(int argc, char *argv[]) {
 						int idx_arr = stationMatrix[j][i];
 						// divresult.rem is start time of the arriving trips
 						divresult = div (nRebPeriods + time_ - travel_time, nRebPeriods);
-						std::cout << "divresult.rem = " << divresult.rem << std::endl;
+						std::cout << "Current time = " << time_ << ", travel_time = " << travel_time << ", divresult.rem = " << divresult.rem << ", idx_arr = "<< idx_arr << std::endl;
 						reb_arr += rij[divresult.rem][idx_arr];
 						// empty trips in transit (not arriving yet)
 						// if tt > 1 -> all trips started after divresult.rem and before time_
 						if (travel_time > 1) {
-							for (int k = 0; k < travel_time; ++k) {
+							for (int k = 1; k < travel_time; ++k) {
 								divresult = div (nRebPeriods + time_ - travel_time + k, nRebPeriods);
+								std::cout << "if travel_time > 1 => " << time_ << ", travel_time = " << travel_time << ", divresult.rem = " << divresult.rem << ", idx_arr = "<< idx_arr << std::endl;
 								reb_arr += rij[divresult.rem][idx_arr];
 							}
 						}
@@ -375,12 +376,12 @@ int main(int argc, char *argv[]) {
 						int idx_arr = stationMatrix[j][i];
 						// divresult.rem is start time of the arriving trips
 						divresult = div (nRebPeriods + time_ - 1 - travel_time, nRebPeriods);
-						std::cout << "divresult.rem = " << divresult.rem << std::endl;
+						std::cout << "Previous time = " << nRebPeriods + time_ - 1 << ", travel_time = " << travel_time << ", divresult.rem = " << divresult.rem << ", idx_arr = "<< idx_arr << std::endl;
 						reb_arr_prev += rij[divresult.rem][idx_arr];
 						// empty trips in transit (not arriving yet)
 						// if tt > 1 -> all trips started after divresult.rem and before time_
 						if (travel_time > 1) {
-							for (int k = 0; k < travel_time; ++k) {
+							for (int k = 1; k < travel_time; ++k) {
 								divresult = div (nRebPeriods + time_ - 1 - travel_time + k, nRebPeriods);
 								reb_arr_prev += rij[divresult.rem][idx_arr];
 							}
