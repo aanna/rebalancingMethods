@@ -79,25 +79,25 @@ int main(int argc, char *argv[]) {
 
 	// input and output files declaration
 	// simple_model
-	bool simple_model = true;
-	const string stationsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/stationsXY.txt";
-	const string costMatrixFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/costM3x3TT.txt";
-	const string originCountsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/origCounts3x3TT.txt";
-	const string destinationCountsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/destCounts3x3TT.txt";
-	const string inTransitCountsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/inTransit3x3TT.txt";
-	const string modelOutput = "rebalancing_formulation_simple.lp";
-	const string solutionOutput = "rebalancing_solution_simple.sol";
+	//	bool simple_model = true;
+	//	const string stationsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/stationsXY.txt";
+	//	const string costMatrixFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/costM3x3TT.txt";
+	//	const string originCountsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/origCounts3x3TT.txt";
+	//	const string destinationCountsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/destCounts3x3TT.txt";
+	//	const string inTransitCountsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/sampleFiles/inTransit3x3TT.txt";
+	//	const string modelOutput = "rebalancing_formulation_simple.lp";
+	//	const string solutionOutput = "rebalancing_solution_simple.sol";
 
 	//	// simmobility files
 	//		// ubuntu
-	//		bool simple_model = false;
-	//		const string stationsFile = "/home/kasia/Dropbox/matlab/2016-03-Demand_generation/facility_location/stations_ecbd34.txt";
-	//		const string costMatrixFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/RebTimeInSecs34Stations.txt";
-	//		const string originCountsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/origCounts_rebEvery900_stations34.txt";
-	//		const string destinationCountsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/destCounts_rebEvery900_stations34.txt";
-	//		const string inTransitCountsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/inTransitReb900Stations34";
-	//		const string modelOutput = "formulation_rebalancing.lp";
-	//		const string solutionOutput = "rebalancing_solution.sol";
+	bool simple_model = false;
+	const string stationsFile = "/home/kasia/Dropbox/matlab/2016-03-Demand_generation/facility_location/stations_ecbd34.txt";
+	const string costMatrixFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/RebTimeInSecs34Stations.txt";
+	const string originCountsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/origCounts_rebEvery900_stations34.txt";
+	const string destinationCountsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/destCounts_rebEvery900_stations34.txt";
+	const string inTransitCountsFile = "/home/kasia/Dropbox/matlab/2015-09_FleetSizeEstimation/inTransitReb900Stations34";
+	const string modelOutput = "formulation_rebalancing.lp";
+	const string solutionOutput = "rebalancing_solution.sol";
 
 	// mac
 	//		stationsFile = "/Users/katarzyna/Dropbox/matlab/2016-03-Demand_generation/facility_location/stations_ecbd34.txt";
@@ -252,7 +252,7 @@ int main(int argc, char *argv[]) {
 						if (depSt == arrSt) {
 							rij[time_][idx].set(GRB_DoubleAttr_Obj, 0.0);
 							rij[time_][idx].set(GRB_StringAttr_VarName, vname.str());
-							std::cout << "vname = " << vname.str() << "\n" << std::flush;
+							// std::cout << "vname = " << vname.str() << "\n" << std::flush;
 							// std::cout << "vname after clear= " << vname.str() << "\n" << std::flush;
 							// std::cout << "Added variable: r_tij," << time_ << "," << depSt << ","<< arrSt << " = 0.0\n" << std::flush;
 							continue;
@@ -427,14 +427,14 @@ int main(int argc, char *argv[]) {
 						int idx_arr = stationMatrix[j][i];
 						// divresult.rem is start time of the arriving trips
 						divresult = div (nRebPeriods + time_ - travel_time, nRebPeriods);
-						std::cout << "Current time = " << time_ << ", travel_time = " << travel_time << ", divresult.rem = " << divresult.rem << ", idx_arr = "<< idx_arr << std::endl;
+						// std::cout << "Current time = " << time_ << ", travel_time = " << travel_time << ", divresult.rem = " << divresult.rem << ", idx_arr = "<< idx_arr << std::endl;
 						reb_arr += rij[divresult.rem][idx_arr];
 						// empty trips in transit (not arriving yet)
 						// if tt > 1 -> all trips started after divresult.rem and before time_
 						if (travel_time > 1) {
 							for (int k = 1; k < travel_time; ++k) {
 								divresult = div (nRebPeriods + time_ - travel_time + k, nRebPeriods);
-								std::cout << "if travel_time > 1 => " << time_ << ", travel_time = " << travel_time << ", divresult.rem = " << divresult.rem << ", idx_arr = "<< idx_arr << std::endl;
+								// std::cout << "if travel_time > 1 => " << time_ << ", travel_time = " << travel_time << ", divresult.rem = " << divresult.rem << ", idx_arr = "<< idx_arr << std::endl;
 								reb_arr += rij[divresult.rem][idx_arr];
 							}
 						}
@@ -458,7 +458,7 @@ int main(int argc, char *argv[]) {
 						int idx_arr = stationMatrix[j][i];
 						// divresult.rem is start time of the arriving trips
 						divresult = div (nRebPeriods + time_ - 1 - travel_time, nRebPeriods);
-						std::cout << "Previous time = " << nRebPeriods + time_ - 1 << ", travel_time = " << travel_time << ", divresult.rem = " << divresult.rem << ", idx_arr = "<< idx_arr << std::endl;
+						// std::cout << "Previous time = " << nRebPeriods + time_ - 1 << ", travel_time = " << travel_time << ", divresult.rem = " << divresult.rem << ", idx_arr = "<< idx_arr << std::endl;
 						reb_arr_prev += rij[divresult.rem][idx_arr];
 						// empty trips in transit (not arriving yet)
 						// if tt > 1 -> all trips started after divresult.rem and before time_
